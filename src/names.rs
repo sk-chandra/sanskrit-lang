@@ -46,6 +46,17 @@ const IDENT_ALIASES: &[(&str, &str)] = &[
     ("show", "रूप"),
     ("substr", "अंश"),
     ("chars", "अक्षर"),
+    // maps / records
+    ("emptymap", "रिक्तकोश"),
+    ("insert", "समावेश"),
+    ("set", "समावेश"),
+    ("get", "प्राप्ति"),
+    ("has", "अस्ति"),
+    ("haskey", "अस्ति"),
+    ("remove", "निष्कास"),
+    ("delete", "निष्कास"),
+    ("keys", "कुञ्जिकाः"),
+    ("values", "मूल्यानि"),
     // higher-order stdlib
     ("map", "प्रति"),
     ("filter", "छन्न"),

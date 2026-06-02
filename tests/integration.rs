@@ -145,6 +145,43 @@ fn fuel_limit_stops_nontermination() {
 }
 
 #[test]
+fn call_by_need_shares_work() {
+    // मन्द(n,1) = 2^n by binding a recursive call once and using it twice.
+    // Under call-by-name this needs 2^n reductions; sharing makes it linear, so
+    // a large n is only reachable at all because work is shared.
+    let src = "सूत्र मन्द(?n, ?x) -> यदि(?n == 0, ?x, let ?y = मन्द(?n - 1, ?x) in ?y + ?y)।";
+    let prog = parser::parse_program(src).unwrap();
+    let mut full = load_prelude().unwrap();
+    full.extend(prog);
+    assert_eq!(eval_in(&full, "मन्द(40, 1)"), "1099511627776"); // 2^40
+}
+
+#[test]
+fn maps_and_records() {
+    assert_eq!(eval("{a: 1, b: 2, c: 3}"), "{a: 1, b: 2, c: 3}");
+    assert_eq!(eval("प्राप्ति({नाम: \"क\"}, \"नाम\")"), "\"क\"");
+    assert_eq!(eval("{x: 1, y: 2}.y"), "2"); // dot access
+    assert_eq!(eval("समावेश({a: 1}, \"b\", 2)"), "{a: 1, b: 2}");
+    assert_eq!(eval("समावेश({a: 1}, \"a\", 9)"), "{a: 9}"); // overwrite
+    assert_eq!(eval("अस्ति({a: 1}, \"a\")"), "सत्य");
+    assert_eq!(eval("अस्ति({a: 1}, \"z\")"), "असत्य");
+    assert_eq!(eval("निष्कास({a: 1, b: 2}, \"a\")"), "{b: 2}");
+    assert_eq!(eval("कुञ्जिकाः({x: 1, y: 2})"), "[\"x\", \"y\"]");
+    assert_eq!(eval("दीर्घ({a: 1, b: 2, c: 3})"), "3");
+    assert_eq!(eval("प्राप्ति({a: 1}, \"z\", 0)"), "0"); // default
+    // Maps are value-equal regardless of insertion order.
+    assert_eq!(eval("{a: 1, b: 2} == {b: 2, a: 1}"), "सत्य");
+    // Bilingual.
+    assert_eq!(eval("get(insert(emptymap, \"k\", 42), \"k\")"), "42");
+}
+
+#[test]
+fn map_is_a_kosha() {
+    let prog = load_prelude().unwrap();
+    assert!(samjna::inhabits(&prog, &nf(&prog, "{a: 1}"), "कोश"));
+}
+
+#[test]
 fn effect_as_data_runs_purely() {
     // बन्ध(शुद्ध(10), (?x) => शुद्ध(?x + 5)) executes to the value 15 with no I/O.
     let prog = load_prelude().unwrap();

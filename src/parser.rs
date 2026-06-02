@@ -243,14 +243,28 @@ impl Parser {
         self.postfix()
     }
 
-    /// A primary followed by zero or more application argument lists.
+    /// A primary followed by zero or more application argument lists or
+    /// field accesses (`f(args)`, `r.field`).
     fn postfix(&mut self) -> PResult<Term> {
         let mut e = self.primary()?;
-        while self.peek() == &Tok::LParen {
-            self.bump();
-            let args = self.arg_list()?;
-            self.expect(&Tok::RParen, "')'")?;
-            e = apply_value(e, args);
+        loop {
+            match self.peek() {
+                Tok::LParen => {
+                    self.bump();
+                    let args = self.arg_list()?;
+                    self.expect(&Tok::RParen, "')'")?;
+                    e = apply_value(e, args);
+                }
+                Tok::Dot => {
+                    self.bump();
+                    let field = match self.bump() {
+                        Tok::Ident(s) => s,
+                        other => return self.err(format!("expected a field name after '.', found {:?}", other)),
+                    };
+                    e = Term::app("प्राप्ति", vec![e, Term::Str(field)]);
+                }
+                _ => break,
+            }
         }
         Ok(e)
     }
@@ -293,6 +307,7 @@ impl Parser {
                 Ok(Term::Sym(canonical(&name), vec![]))
             }
             Tok::LBrack => self.list_literal(),
+            Tok::LBrace => self.map_literal(),
             Tok::LParen => self.paren_or_lambda(),
             Tok::KwLet => self.let_expr(),
             Tok::KwIf => self.if_expr(),
@@ -315,6 +330,40 @@ impl Parser {
         }
         self.expect(&Tok::RBrack, "']'")?;
         Ok(cons_list(items))
+    }
+
+    /// A map / record literal: `{ key: value, … }`. A bare identifier key is a
+    /// field name (string key); `{}` is the empty map. Desugars to a chain of
+    /// `समावेश` (insert) over `रिक्तकोश` (the empty map).
+    fn map_literal(&mut self) -> PResult<Term> {
+        self.expect(&Tok::LBrace, "'{'")?;
+        let mut entries: Vec<(Term, Term)> = Vec::new();
+        if self.peek() != &Tok::RBrace {
+            loop {
+                let key = match self.peek().clone() {
+                    // A bare identifier names a field ⇒ a string key.
+                    Tok::Ident(name) => {
+                        self.bump();
+                        Term::Str(name)
+                    }
+                    _ => self.expr()?,
+                };
+                self.expect(&Tok::Colon, "':' in map entry")?;
+                let value = self.expr()?;
+                entries.push((key, value));
+                if self.peek() == &Tok::Comma {
+                    self.bump();
+                } else {
+                    break;
+                }
+            }
+        }
+        self.expect(&Tok::RBrace, "'}'")?;
+        let mut t = Term::con("रिक्तकोश");
+        for (k, v) in entries {
+            t = Term::app("समावेश", vec![t, k, v]);
+        }
+        Ok(t)
     }
 
     /// Either a parenthesised expression or a lambda `(params) => body`.

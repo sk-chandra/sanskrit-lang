@@ -42,13 +42,19 @@ model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
   `filter`, `sutra` (string ops), `io` (action helpers).
 * Updated examples, tests, DESIGN and README.
 
-## Phase 2 — performance & richer data *(next)*
+## Phase 2 — performance & richer data *(in progress, v0.3)*
 
-* Call-by-need (graph reduction / sharing) for predictable performance.
-* Native `Map`/dictionary and records; tuples.
-* More effects: file read/write, program args, time, randomness, environment.
-* `do`-notation sugar over `बन्ध`/`शुद्ध`.
-* Arbitrary-precision integers.
+* ✅ **Call-by-need sharing.** A variable used more than once is bound to a
+  shared thunk (`Share`), so it is reduced at most once. `मन्द(n,1) = 2ⁿ` runs
+  in O(n) steps instead of O(2ⁿ).
+* ✅ **Native maps & records.** `Term::Map` with literal/record syntax
+  `{k: v}`, dot access `r.field`, and `समावेश`/`प्राप्ति`/`अस्ति`/`निष्कास`/
+  `कुञ्जिकाः`/`मूल्यानि` (insert/get/has/remove/keys/values). Records are maps
+  with field-name keys. Recognised as the `कोश` saṃjñā.
+* ⬜ Tuples.
+* ⬜ More effects: file read/write, program args, time, randomness, environment.
+* ⬜ `do`-notation sugar over `बन्ध`/`शुद्ध`.
+* ⬜ Arbitrary-precision integers (current ints are 64-bit and wrap).
 
 ## Phase 3 — scale & tooling
 

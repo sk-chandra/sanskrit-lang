@@ -1,4 +1,4 @@
-# सूत्र — Sūtra: design & specification (v0.2)
+# सूत्र — Sūtra: design & specification (v0.3)
 
 > *vipratiṣedhe paraṃ kāryam* — "in conflict, the later rule prevails." (Aṣṭādhyāyī 1.4.2)
 
@@ -101,10 +101,29 @@ Desugaring (every construct elaborates to `Sym` / `App` / `Lam` / literals):
 
 A term is one of: a variable `?x`; a native `Int`, `Float`, or `Str`; a symbol
 application `name(args…)` (nullary = constant/constructor); a lambda
-`(params) => body`; or an application `f(args…)` of a function *value*. The
-parser produces a `Sym` when the head is a literal name and an `App` when the
-head is a variable, lambda, or parenthesised expression — that distinction is
-what makes both named functions and lambdas first-class.
+`(params) => body`; an application `f(args…)` of a function *value*; or a native
+`Map`. The parser produces a `Sym` when the head is a literal name and an `App`
+when the head is a variable, lambda, or parenthesised expression — that
+distinction is what makes both named functions and lambdas first-class.
+
+### Maps & records
+
+A **map** is a native immutable key→value table (kept sorted and deduplicated,
+so equality is order-independent). A **record** is simply a map whose keys are
+field-name strings. Both share one literal and recognise as the `कोश` saṃjñā:
+
+```
+{नाम: "पाणिनि", सूत्राणि: 3959}        # bare-identifier keys are field strings
+{"a": 1, 2: "two"}                     # arbitrary value keys
+{भाषा: "संस्कृत"}.भाषा                  # dot access ⇒ "संस्कृत"
+```
+
+`{k: v, …}` desugars to `समावेश(… समावेश(रिक्तकोश, k, v) …)` and `r.f` to
+`प्राप्ति(r, "f")`. Operations (`समावेश` insert, `प्राप्ति` get — with an
+optional default, `अस्ति` has, `निष्कास` remove, `कुञ्जिकाः` keys, `मूल्यानि`
+values, `दीर्घ` size) are native builtins; they are functional (return new
+maps). Lookup/membership are O(log n); update is O(n) (a persistent HAMT is
+future work).
 
 ---
 
@@ -130,6 +149,12 @@ the REPL's `:type`.
 * **Leftmost-outermost reduction.** The root redex is tried first; arguments are
   reduced only as demanded. This keeps `यदि` (a library rule) lazy — the unused
   branch is never evaluated.
+* **Call-by-need sharing.** When a rule fires or a lambda β-reduces, a variable
+  used more than once in the body is bound to a single shared thunk, so the
+  expression behind it is reduced at most once no matter how often it is used.
+  For example `let ?y = e in ?y + ?y` evaluates `e` once; `मन्द(n,1) = 2ⁿ` runs
+  in O(n) steps rather than O(2ⁿ). Shares are an internal device, stripped from
+  a normal form before it is shown.
 * **Builtins are strict.** Native operations (`+`, `==`, `++`, …) reduce their
   arguments to values first, then compute. They are tried only after user rules.
 * **Higher-order reduction.** Applying a lambda β-reduces (with currying and
@@ -200,19 +225,25 @@ remains flat for now (see roadmap).
 | `सूची` suchi     | `दीर्घ`, `योजन`, `विपर्यय`, `शीर्ष`, `पुच्छ`, `प्रति` map, `छन्न` filter, `संहार` fold, `सदस्य`, `समष्टि` |
 | `io`             | `अनुक्रम` sequencing                                            |
 
-Arithmetic/comparison/`++`/`दीर्घ`(string)/`रूप`(show)/`अंश`/`अक्षर` are native
-builtins.
+Arithmetic/comparison/`++`/`दीर्घ`(string & map)/`रूप`(show)/`अंश`/`अक्षर` and
+the map operations (`रिक्तकोश`/`समावेश`/`प्राप्ति`/`अस्ति`/`निष्कास`/`कुञ्जिकाः`/
+`मूल्यानि`) are native builtins.
 
 ---
 
 ## 11. Limitations & future work
 
-* **Call-by-name** β/`let`: arguments are substituted unevaluated, so a value
-  bound and used many times can be recomputed. Call-by-need (sharing) is the
-  next performance step.
+* **Numeric base cases need a guard.** Because a catch-all rule `f(?n)` matches
+  an unevaluated argument before a literal-pattern rule `f(0)` can force it,
+  numeric recursion should test with `?n == 0` (as `क्रमगुणित` does) rather than
+  rely on a `f(0) -> …` clause. Constructor patterns (e.g. `युग्म`/`रिक्त`) do
+  not have this issue.
+* **64-bit integers** that wrap on overflow (so `क्रमगुणित(100)` overflows);
+  arbitrary precision is planned.
 * **First-order matching only** — no true subsequence/contextual (`_`) rules
   yet, so real Pāṇinian sandhi is approximated over cons-lists.
 * **Capture-avoidance** in substitution is shadow-aware but does not α-rename;
   in practice rule RHSs close their lambdas before β so this is rarely visible.
-* **Flat namespaces** (`अधिकार` is organisational). No `Map`/records/tuples yet,
-  no file/args/time effects yet, no static type checking. See the roadmap.
+* **Map update is O(n)** (persistent sorted vector); a HAMT is future work.
+* **Flat namespaces** (`अधिकार` is organisational); no tuples, no file/args/time
+  effects, no `do`-notation, no static type checking yet. See the roadmap.

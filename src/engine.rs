@@ -121,6 +121,14 @@ impl<'a> Engine<'a> {
             ),
             // A shared thunk is a runtime value with no free template variables.
             Term::Share(_) => t.clone(),
+            // Map entries may mention variables when written as a literal that
+            // has not yet been built into a Map value.
+            Term::Map(entries) => Term::Map(
+                entries
+                    .iter()
+                    .map(|(k, v)| (Self::subst(k, binds), Self::subst(v, binds)))
+                    .collect(),
+            ),
         }
     }
 

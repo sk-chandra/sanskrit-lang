@@ -7,13 +7,14 @@
 use crate::ast::{Program, Term};
 
 /// Built-in saṃjñā names for native values: (name, predicate).
-const NATIVE: &[&str] = &["संख्या", "दशांश", "अक्षरमाला"];
+const NATIVE: &[&str] = &["संख्या", "दशांश", "अक्षरमाला", "कोश"];
 
 fn native_inhabits(name: &str, term: &Term) -> Option<bool> {
     match name {
         "संख्या" => Some(matches!(term, Term::Int(_))),
         "दशांश" => Some(matches!(term, Term::Float(_))),
         "अक्षरमाला" => Some(matches!(term, Term::Str(_))),
+        "कोश" => Some(matches!(term, Term::Map(_))),
         _ => None,
     }
 }

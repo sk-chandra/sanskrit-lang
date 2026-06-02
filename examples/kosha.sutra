@@ -1,0 +1,20 @@
+# कोश — maps and records. A record is just a map with field-name keys.
+# Run: sutra run examples/kosha.sutra
+
+# A record literal; bare identifier keys are field names.
+प्रयोग {नाम: "पाणिनि", ग्रन्थ: "अष्टाध्यायी", सूत्राणि: 3959}।
+
+# Field access with dot, and functional update with समावेश (insert).
+प्रयोग {नाम: "पाणिनि", आयु: 40}.नाम।
+प्रयोग समावेश({x: 1, y: 2}, "x", 99)।        # ⇒ {x: 99, y: 2}
+
+# Query operations.
+प्रयोग अस्ति({a: 1, b: 2}, "b")।             # ⇒ सत्य
+प्रयोग कुञ्जिकाः({एकम्: 1, द्वे: 2, त्रीणि: 3})।
+प्रयोग प्राप्ति({a: 1}, "गुप्त", "पूर्वनिर्धारित")।   # absent key ⇒ the default
+
+# Maps compare by content, not insertion order.
+प्रयोग {a: 1, b: 2} == {b: 2, a: 1}।          # ⇒ सत्य
+
+# Maps are ordinary values: build one with a fold.
+प्रयोग संहार((?म, ?न) => समावेश(?म, रूप(?न), वर्ग(?न)), रिक्तकोश, [1, 2, 3, 4])।

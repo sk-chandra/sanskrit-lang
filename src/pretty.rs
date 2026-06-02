@@ -37,6 +37,20 @@ pub fn show(term: &Term, ascii: bool) -> String {
             };
             format!("{}({})", fs, a.join(", "))
         }
+        Term::Map(entries) => {
+            let inner: Vec<String> = entries
+                .iter()
+                .map(|(k, v)| {
+                    // Print string keys bare (record style), other keys quoted.
+                    let ks = match k {
+                        Term::Str(s) => s.clone(),
+                        other => show(other, ascii),
+                    };
+                    format!("{}: {}", ks, show(v, ascii))
+                })
+                .collect();
+            format!("{{{}}}", inner.join(", "))
+        }
         Term::Sym(name, args) => {
             // List sugar.
             if let Some(items) = as_list(term) {

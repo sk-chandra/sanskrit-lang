@@ -32,6 +32,9 @@ pub enum Term {
     /// Shares are an internal runtime device; they never appear in source and
     /// are stripped from a normal form before it leaves the engine.
     Share(Rc<RefCell<Term>>),
+    /// A native immutable map / record: key→value pairs kept sorted by key and
+    /// deduplicated. Records are just maps with string (field-name) keys.
+    Map(Vec<(Term, Term)>),
 }
 
 impl Term {
@@ -77,6 +80,9 @@ impl Term {
                 Term::App(Box::new(f.strip()), args.iter().map(|a| a.strip()).collect())
             }
             Term::Lam(p, b) => Term::Lam(p.clone(), Box::new(b.strip())),
+            Term::Map(entries) => {
+                Term::Map(entries.iter().map(|(k, v)| (k.strip(), v.strip())).collect())
+            }
             other => other.clone(),
         }
     }

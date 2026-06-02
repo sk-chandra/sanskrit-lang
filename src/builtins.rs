@@ -21,6 +21,13 @@ pub fn is_builtin(name: &str) -> bool {
             | "रूप"
             | "अंश"
             | "अक्षर"
+            | "रिक्तकोश"
+            | "समावेश"
+            | "प्राप्ति"
+            | "अस्ति"
+            | "निष्कास"
+            | "कुञ्जिकाः"
+            | "मूल्यानि"
     )
 }
 
@@ -51,6 +58,87 @@ pub fn apply(name: &str, args: &[Term]) -> Option<Term> {
         "रूप" => show(args),
         "अंश" => substr(args),
         "अक्षर" => chars(args),
+        "रिक्तकोश" => Some(Term::Map(vec![])),
+        "समावेश" => map_insert(args),
+        "प्राप्ति" => map_get(args),
+        "अस्ति" => map_has(args),
+        "निष्कास" => map_remove(args),
+        "कुञ्जिकाः" => map_keys(args),
+        "मूल्यानि" => map_values(args),
+        _ => None,
+    }
+}
+
+/// A total order on key terms, used to keep maps sorted and deduplicated.
+fn key_cmp(a: &Term, b: &Term) -> std::cmp::Ordering {
+    crate::pretty::show(a, true).cmp(&crate::pretty::show(b, true))
+}
+
+fn map_insert(args: &[Term]) -> Option<Term> {
+    match args {
+        [Term::Map(entries), k, v] => {
+            let mut out = entries.clone();
+            match out.binary_search_by(|(ek, _)| key_cmp(ek, k)) {
+                Ok(i) => out[i].1 = v.clone(),
+                Err(i) => out.insert(i, (k.clone(), v.clone())),
+            }
+            Some(Term::Map(out))
+        }
+        _ => None,
+    }
+}
+
+fn map_lookup<'a>(entries: &'a [(Term, Term)], k: &Term) -> Option<&'a Term> {
+    entries
+        .binary_search_by(|(ek, _)| key_cmp(ek, k))
+        .ok()
+        .map(|i| &entries[i].1)
+}
+
+fn map_get(args: &[Term]) -> Option<Term> {
+    match args {
+        [Term::Map(entries), k] => Some(match map_lookup(entries, k) {
+            Some(v) => v.clone(),
+            None => dosha("कुञ्जिका न प्राप्ता (key not found)"),
+        }),
+        // प्राप्ति(map, key, default) — return default when absent.
+        [Term::Map(entries), k, default] => {
+            Some(map_lookup(entries, k).cloned().unwrap_or_else(|| default.clone()))
+        }
+        _ => None,
+    }
+}
+
+fn map_has(args: &[Term]) -> Option<Term> {
+    match args {
+        [Term::Map(entries), k] => Some(boolean(map_lookup(entries, k).is_some())),
+        _ => None,
+    }
+}
+
+fn map_remove(args: &[Term]) -> Option<Term> {
+    match args {
+        [Term::Map(entries), k] => {
+            let mut out = entries.clone();
+            if let Ok(i) = out.binary_search_by(|(ek, _)| key_cmp(ek, k)) {
+                out.remove(i);
+            }
+            Some(Term::Map(out))
+        }
+        _ => None,
+    }
+}
+
+fn map_keys(args: &[Term]) -> Option<Term> {
+    match args {
+        [Term::Map(entries)] => Some(make_list(entries.iter().map(|(k, _)| k.clone()).collect())),
+        _ => None,
+    }
+}
+
+fn map_values(args: &[Term]) -> Option<Term> {
+    match args {
+        [Term::Map(entries)] => Some(make_list(entries.iter().map(|(_, v)| v.clone()).collect())),
         _ => None,
     }
 }
@@ -185,6 +273,7 @@ fn concat(args: &[Term]) -> Option<Term> {
 fn length(args: &[Term]) -> Option<Term> {
     match args {
         [Term::Str(s)] => Some(Term::Int(s.chars().count() as i64)),
+        [Term::Map(entries)] => Some(Term::Int(entries.len() as i64)),
         _ => None,
     }
 }

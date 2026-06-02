@@ -32,6 +32,10 @@ pub enum Tok {
     RParen,
     LBrack,
     RBrack,
+    LBrace,
+    RBrace,
+    Colon, // :  (map/record key separator)
+    Dot,   // .  (field access)
     Comma,
     Danda, // । ॥ ;
 
@@ -151,6 +155,10 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
             ')' => Some(Tok::RParen),
             '[' => Some(Tok::LBrack),
             ']' => Some(Tok::RBrack),
+            '{' => Some(Tok::LBrace),
+            '}' => Some(Tok::RBrace),
+            ':' => Some(Tok::Colon),
+            '.' => Some(Tok::Dot),
             ',' => Some(Tok::Comma),
             '|' => Some(Tok::Bar),
             '=' => Some(Tok::Eq),

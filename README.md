@@ -47,6 +47,9 @@ Options: `--fuel N`, `--ascii`, `--no-prelude`, `--check` (report saṃjñās),
 # Higher-order functions, lambdas, list literals, pipes:
 प्रयोग [1, 2, 3, 4, 5] |> प्रति((?x) => ?x * ?x) |> समष्टि।   # ⇒ 55
 
+# Maps and records (a record is a map with field-name keys):
+प्रयोग {नाम: "पाणिनि", सूत्राणि: 3959}.सूत्राणि।             # ⇒ 3959
+
 # Pure effect-as-data I/O: मुख्य builds an action; the runtime performs it.
 सूत्र मुख्य ->
   मुद्रण("तव नाम किम्?") >>
@@ -72,6 +75,7 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
 |------|-------|
 | [`examples/ganita.sutra`](examples/ganita.sutra) | native arithmetic, `श्रेणी`, `समष्टि` |
 | [`examples/suchi.sutra`](examples/suchi.sutra)   | lists, literals, `map`/`filter`/`fold` |
+| [`examples/kosha.sutra`](examples/kosha.sutra)   | maps & records: literals, dot access, queries |
 | [`examples/fizzbuzz.sutra`](examples/fizzbuzz.sutra) | FizzBuzz as a folded, pure action |
 | [`examples/hello.sutra`](examples/hello.sutra)   | interactive I/O (print/read/bind) |
 | [`examples/sandhi.sutra`](examples/sandhi.sutra) | Sanskrit vowel sandhi as rewriting |
@@ -96,10 +100,11 @@ cargo test
 
 ## Status
 
-v0.2 — a general-purpose practice language. Working: native data, higher-order
-functions, ergonomic sugar, pure effect-as-data I/O, modules, bilingual syntax.
-Next (see [ROADMAP.md](ROADMAP.md)): call-by-need performance, `Map`/records,
-more effects, namespacing, and tooling.
+v0.3 — a general-purpose practice language. Working: native data (including
+maps & records), higher-order functions, **call-by-need sharing**, ergonomic
+sugar, pure effect-as-data I/O, modules, bilingual syntax. Next (see
+[ROADMAP.md](ROADMAP.md)): more effects (files/args/time), `do`-notation,
+arbitrary-precision integers, namespacing, and tooling.
 
 ## License
 
