@@ -1,19 +1,13 @@
-# सूची — lists. A list is either रिक्त (empty) or युग्म(head, tail) (a cons cell).
+# सूची — lists, including the higher-order workhorses प्रति/छन्न/संहार
+# (map / filter / fold).
 
 अधिकार सूची।
 
-# सूची(?क) — the (polymorphic) saṃjñā of lists of ?क.
-संज्ञा सूची(?क) := रिक्त | युग्म(?क, सूची(?क))।
+# दीर्घ — length. (For strings, the native builtin दीर्घ applies instead.)
+सूत्र दीर्घ(रिक्त) -> 0।
+सूत्र दीर्घ(युग्म(?क, ?श)) -> 1 + दीर्घ(?श)।
 
-# दोष — the saṃjñā of error values. An error is ordinary data: it carries a
-# message and can be inspected or pattern-matched like anything else.
-संज्ञा दोष := दोष(?सन्देश)।
-
-# दीर्घ — length.
-सूत्र दीर्घ(रिक्त) -> ०।
-सूत्र दीर्घ(युग्म(?क, ?श)) -> उत्तर(दीर्घ(?श))।
-
-# योजन — append (concatenate two lists).
+# योजन — append.
 सूत्र योजन(रिक्त, ?य) -> ?य।
 सूत्र योजन(युग्म(?क, ?श), ?य) -> युग्म(?क, योजन(?श, ?य))।
 
@@ -21,15 +15,25 @@
 सूत्र विपर्यय(रिक्त) -> रिक्त।
 सूत्र विपर्यय(युग्म(?क, ?श)) -> योजन(विपर्यय(?श), युग्म(?क, रिक्त))।
 
-# शीर्ष — head. Taking the head of an empty list yields a दोष (error value)
-# rather than getting stuck.
+# शीर्ष — head; पुच्छ — tail. Empty cases yield a दोष error value.
 सूत्र शीर्ष(रिक्त) -> दोष("रिक्ता सूची")।
 सूत्र शीर्ष(युग्म(?क, ?श)) -> ?क।
-
-# पुच्छ — tail.
 सूत्र पुच्छ(रिक्त) -> दोष("रिक्ता सूची")।
 सूत्र पुच्छ(युग्म(?क, ?श)) -> ?श।
 
-# सदस्य — membership test for a natural number in a list of naturals.
+# प्रति — map: apply ?फ to every element.
+सूत्र प्रति(?फ, रिक्त) -> रिक्त।
+सूत्र प्रति(?फ, युग्म(?क, ?श)) -> युग्म(?फ(?क), प्रति(?फ, ?श))।
+
+# छन्न — filter: keep elements satisfying the predicate ?फ.
+सूत्र छन्न(?फ, रिक्त) -> रिक्त।
+सूत्र छन्न(?फ, युग्म(?क, ?श)) -> यदि(?फ(?क), युग्म(?क, छन्न(?फ, ?श)), छन्न(?फ, ?श))।
+
+# संहार — left fold: संहार(f, acc, [x,y,…]) = f(f(acc, x), y) …
+सूत्र संहार(?फ, ?आदि, रिक्त) -> ?आदि।
+सूत्र संहार(?फ, ?आदि, युग्म(?क, ?श)) -> संहार(?फ, ?फ(?आदि, ?क), ?श)।
+
+# सदस्य — membership; समष्टि — sum of a numeric list.
 सूत्र सदस्य(?ल, रिक्त) -> असत्य।
-सूत्र सदस्य(?ल, युग्म(?क, ?श)) -> वा(तुल्य(?ल, ?क), सदस्य(?ल, ?श))।
+सूत्र सदस्य(?ल, युग्म(?क, ?श)) -> वा(?ल == ?क, सदस्य(?ल, ?श))।
+सूत्र समष्टि(?श) -> संहार((?आ, ?क) => ?आ + ?क, 0, ?श)।

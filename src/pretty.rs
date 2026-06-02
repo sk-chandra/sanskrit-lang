@@ -1,36 +1,80 @@
-//! Pretty-printing of terms, with numeral sugar.
-//!
-//! Peano numbers (`उत्तर(उत्तर(...(०)))`) are collapsed back to numerals so
-//! that results read naturally. By default numerals print in Devanagari; pass
-//! `ascii = true` for Latin digits.
+//! Pretty-printing of terms. Integers print in Devanagari by default (pass
+//! `ascii = true` for Latin digits). Cons-lists print with `[...]` sugar.
 
 use crate::ast::Term;
-
-fn to_devanagari(n: u128) -> String {
-    let ascii = n.to_string();
-    ascii
-        .chars()
-        .map(|c| {
-            if let Some(d) = c.to_digit(10) {
-                char::from_u32(0x0966 + d).unwrap()
-            } else {
-                c
-            }
-        })
-        .collect()
-}
+use crate::names::devanagari_digits;
 
 pub fn show(term: &Term, ascii: bool) -> String {
-    if let Some(n) = term.as_nat() {
-        return if ascii { n.to_string() } else { to_devanagari(n) };
-    }
     match term {
-        Term::Var(v) => format!("?{}", v),
+        Term::Int(n) => {
+            let s = n.to_string();
+            if ascii {
+                s
+            } else {
+                devanagari_digits(&s)
+            }
+        }
+        Term::Float(f) => {
+            let s = format!("{}", f);
+            if ascii {
+                s
+            } else {
+                devanagari_digits(&s)
+            }
+        }
         Term::Str(s) => format!("\"{}\"", s),
-        Term::Sym(name, args) if args.is_empty() => name.clone(),
+        Term::Var(v) => format!("?{}", v),
+        Term::Lam(params, body) => {
+            let ps: Vec<String> = params.iter().map(|p| format!("?{}", p)).collect();
+            format!("({}) => {}", ps.join(", "), show(body, ascii))
+        }
+        Term::App(f, args) => {
+            let a: Vec<String> = args.iter().map(|x| show(x, ascii)).collect();
+            let fs = match f.as_ref() {
+                Term::Lam(..) => format!("({})", show(f, ascii)),
+                _ => show(f, ascii),
+            };
+            format!("{}({})", fs, a.join(", "))
+        }
         Term::Sym(name, args) => {
-            let inner: Vec<String> = args.iter().map(|a| show(a, ascii)).collect();
-            format!("{}({})", name, inner.join(", "))
+            // List sugar.
+            if let Some(items) = as_list(term) {
+                let inner: Vec<String> = items.iter().map(|x| show(x, ascii)).collect();
+                return format!("[{}]", inner.join(", "));
+            }
+            // Infix sugar for binary operators.
+            if args.len() == 2 && is_operator(name) {
+                return format!("{} {} {}", show(&args[0], ascii), name, show(&args[1], ascii));
+            }
+            if args.is_empty() {
+                name.clone()
+            } else {
+                let inner: Vec<String> = args.iter().map(|x| show(x, ascii)).collect();
+                format!("{}({})", name, inner.join(", "))
+            }
+        }
+    }
+}
+
+fn is_operator(name: &str) -> bool {
+    matches!(
+        name,
+        "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "++" | "::"
+    )
+}
+
+/// If `term` is a proper cons-list, return its elements.
+fn as_list(term: &Term) -> Option<Vec<Term>> {
+    let mut t = term;
+    let mut out = Vec::new();
+    loop {
+        match t {
+            Term::Sym(n, a) if n == "रिक्त" && a.is_empty() => return Some(out),
+            Term::Sym(n, a) if n == "युग्म" && a.len() == 2 => {
+                out.push(a[0].clone());
+                t = &a[1];
+            }
+            _ => return None,
         }
     }
 }

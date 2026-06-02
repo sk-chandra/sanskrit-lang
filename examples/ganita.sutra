@@ -1,8 +1,8 @@
-# गणित — arithmetic examples. Run with:  sutra run examples/ganita.sutra
+# गणित — arithmetic with native numbers. Run: sutra run examples/ganita.sutra
 
-प्रयोग योग(२, ३)।            # 2 + 3
-प्रयोग गुणन(४, ५)।           # 4 * 5
-प्रयोग क्रमगुणित(५)।         # 5! = 120
-प्रयोग वियोग(७, १०)।        # monus: 7 - 10 = 0 (never negative)
-प्रयोग न्यूनसम(३, ३)।       # 3 <= 3 ?
-प्रयोग तुल्य(गुणन(२, ३), ६)।  # (2*3) == 6 ?
+प्रयोग 2 + 3 * 4।                      # operator precedence ⇒ 14
+प्रयोग क्रमगुणित(20)।                   # native ints are fast & exact
+प्रयोग (10 - 3) % 4।
+प्रयोग महत्तम(17, 42)।
+प्रयोग समष्टि(श्रेणी(1, 101))।          # 1 + 2 + … + 100 ⇒ 5050
+प्रयोग प्रति(वर्ग, श्रेणी(1, 11))।       # squares of 1..10

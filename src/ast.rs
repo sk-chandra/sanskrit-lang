@@ -1,87 +1,62 @@
 //! Abstract syntax for Sūtra.
 //!
-//! Everything in Sūtra is a *term* (पद). There are no statements and no
-//! special forms — programs are sets of rewrite rules (सूत्र) over terms.
+//! The core is still term rewriting, but terms now include native data
+//! (integers, floats, strings) and the two ingredients of higher-order
+//! programming: lambdas and application.
 
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
-/// The canonical name of the zero constructor.
-///
-/// We use the Devanagari digit zero so that the numeral `०` a user writes and
-/// the internal nullary constructor are literally the same symbol.
-pub const ZERO: &str = "०";
-
-/// The canonical name of the successor constructor (uttara, "the next").
-pub const SUCC: &str = "उत्तर";
-
-/// A term: either a variable, a string literal, or a symbol application.
-///
-/// A nullary application `Sym(name, [])` is a *constant* / constructor; a
-/// non-empty one is an application `name(arg, ...)`. There is no separate
-/// notion of function vs. constructor — whether a symbol reduces depends only
-/// on whether any rule's left-hand side matches it.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+/// A term: the single syntactic category of the language.
+#[derive(Clone, Debug, PartialEq)]
 pub enum Term {
-    /// A pattern variable, written `?name`. Only meaningful inside rules.
+    /// A pattern variable, written `?name`.
     Var(String),
-    /// A string literal, e.g. doṣa (error) messages.
+    /// A native integer literal.
+    Int(i64),
+    /// A native floating-point literal.
+    Float(f64),
+    /// A native string literal.
     Str(String),
-    /// A symbol applied to zero or more arguments: `name(args...)`.
+    /// A symbol applied to zero or more arguments: `name(args...)`. A nullary
+    /// symbol is a constant / constructor.
     Sym(String, Vec<Term>),
+    /// An anonymous function: `(params) => body`.
+    Lam(Vec<String>, Box<Term>),
+    /// Application of a function *value* (a lambda or a function reference) to
+    /// arguments: `f(args...)` where `f` is not a literal symbol name.
+    App(Box<Term>, Vec<Term>),
 }
 
 impl Term {
-    /// A nullary constant / constructor.
     pub fn con(name: &str) -> Term {
         Term::Sym(name.to_string(), vec![])
     }
 
-    /// An application `name(args...)`.
     pub fn app(name: &str, args: Vec<Term>) -> Term {
         Term::Sym(name.to_string(), args)
     }
 
-    /// Build the Peano encoding of a natural number: `उत्तर(उत्तर(...(०)))`.
-    pub fn nat(mut n: u128) -> Term {
-        let mut t = Term::con(ZERO);
-        while n > 0 {
-            t = Term::Sym(SUCC.to_string(), vec![t]);
-            n -= 1;
-        }
-        t
-    }
-
-    /// If this term is a Peano numeral, return its value.
-    pub fn as_nat(&self) -> Option<u128> {
-        let mut t = self;
-        let mut n: u128 = 0;
-        loop {
-            match t {
-                Term::Sym(s, args) if s == ZERO && args.is_empty() => return Some(n),
-                Term::Sym(s, args) if s == SUCC && args.len() == 1 => {
-                    n = n.checked_add(1)?;
-                    t = &args[0];
-                }
-                _ => return None,
-            }
-        }
+    /// Is this term a value (fully evaluated, no redex at the root)?
+    /// Used by builtins to decide whether their arguments are ready.
+    pub fn is_value_atom(&self) -> bool {
+        matches!(self, Term::Int(_) | Term::Float(_) | Term::Str(_))
     }
 }
 
-/// A bound set of pattern variables produced by matching.
-pub type Bindings = BTreeMap<String, Term>;
+/// Bindings produced by matching a pattern. Keys are variable names.
+pub type Bindings = HashMap<String, Term>;
 
 /// A rewrite rule (सूत्र): `lhs -> rhs`.
 #[derive(Clone, Debug)]
 pub struct Rule {
     pub lhs: Term,
     pub rhs: Term,
-    /// Source order index, used to implement paratva (latest-declared wins).
+    /// Source order, used to implement paratva (latest-declared wins).
     pub order: usize,
 }
 
-/// A saṃjñā (संज्ञा) — a named class of terms, i.e. an algebraic data type /
-/// grammar production: `name(params) := alt | alt | ...`.
+/// A saṃjñā (संज्ञा) — a named class of terms (an algebraic data type /
+/// grammar production).
 #[derive(Clone, Debug)]
 pub struct Samjna {
     pub name: String,
@@ -96,11 +71,13 @@ pub struct Program {
     pub samjnas: Vec<Samjna>,
     /// `प्रयोग EXPR।` declarations: expressions to evaluate and print.
     pub prayogas: Vec<Term>,
+    /// Imported file paths (`उपयोग "..."`), resolved by the loader.
+    pub imports: Vec<String>,
 }
 
 impl Program {
-    /// Append another program's declarations to this one, keeping rule order
-    /// stable (later declarations get higher `order`, so they win under paratva).
+    /// Append another program's declarations, keeping rule order stable so that
+    /// later declarations keep higher `order` (and thus win under paratva).
     pub fn extend(&mut self, other: Program) {
         let base = self.rules.len();
         for mut r in other.rules {
@@ -109,9 +86,19 @@ impl Program {
         }
         self.samjnas.extend(other.samjnas);
         self.prayogas.extend(other.prayogas);
+        self.imports.extend(other.imports);
     }
 
     pub fn samjna(&self, name: &str) -> Option<&Samjna> {
         self.samjnas.iter().find(|s| s.name == name)
+    }
+
+    /// The right-hand side of the `मुख्य` (main) rule, if defined.
+    pub fn main_action(&self) -> Option<Term> {
+        self.rules
+            .iter()
+            .rev()
+            .find(|r| matches!(&r.lhs, Term::Sym(n, a) if n == "मुख्य" && a.is_empty()))
+            .map(|r| r.rhs.clone())
     }
 }

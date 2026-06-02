@@ -1,273 +1,218 @@
-# सूत्र — Sūtra: a Pāṇinian term-rewriting language
+# सूत्र — Sūtra: design & specification (v0.2)
 
 > *vipratiṣedhe paraṃ kāryam* — "in conflict, the later rule prevails." (Aṣṭādhyāyī 1.4.2)
 
-Sūtra is a small, pure programming language whose only computational mechanism is
-**term rewriting**, in the spirit of Pāṇini's *Aṣṭādhyāyī* — the ~2,500-year-old
-Sanskrit grammar that is, in effect, a formal rewriting system. A program is a
-set of rules (सूत्र); running a program means rewriting a term to a normal form.
+Sūtra is a programming language whose computational core is **term rewriting**,
+in the spirit of Pāṇini's *Aṣṭādhyāyī*. A program is a set of rules (सूत्र) over
+terms (पद); running a program rewrites a term to a normal form. On top of that
+core, v0.2 adds the machinery of a practical general-purpose language: native
+data, higher-order functions, ergonomic syntax, pure I/O, and modules — while
+keeping the rewriting soul intact.
 
-This document is both the design rationale and the specification for v0.1. It is
-the authoritative record of the decisions taken during design.
+See [ROADMAP.md](ROADMAP.md) for the phase plan. This document specifies the
+language as it stands.
 
 ---
 
 ## 1. Philosophy
 
-Pāṇini described Sanskrit not with prose but with ~4,000 *sūtras*: ordered,
-context-sensitive rewrite rules over phonological strings, complete with named
-classes (*saṃjñā*), abbreviatory devices (*pratyāhāra*), meta-rules
-(*paribhāṣā*), and an explicit conflict-resolution principle (*paratva*). It is
-uncannily close to a modern term-rewriting system.
+Pāṇini described Sanskrit with ordered, context-sensitive rewrite rules, named
+classes (*saṃjñā*), and an explicit conflict-resolution principle (*paratva*).
+Sūtra takes that correspondence literally and builds outward from it. Commitments:
 
-Sūtra takes that correspondence literally. The guiding commitments are:
+1. **Rewriting is the core.** Functions are rules; evaluation is reduction.
+2. **Purity.** No mutable state and no hidden effects. Even I/O is pure data
+   (§8): a program *describes* effects that the runtime performs.
+3. **Sanskrit-first, but bilingual.** Devanagari names are canonical; every
+   keyword, operator-word, builtin and stdlib function has a Latin alias, so the
+   same language is writable in either script (§2).
+4. **Sugar desugars.** Operators, `let`, lambdas, `if`, list literals are
+   surface conveniences that elaborate into the small core (§3).
 
-1. **Purity.** No mutable state, no side effects, no I/O in the language core.
-   A program is a mathematical object: a rewrite relation.
-2. **Uniformity.** Everything is a *term*. There are no statements and no
-   special forms. Arithmetic, booleans, conditionals, lists and even error
-   handling are ordinary rules — most of them library code written in Sūtra.
-3. **Authenticity.** Keywords, the standard library and idioms are Sanskrit;
-   source may be written in Devanagari or Latin. The showcase library module
-   implements (a fragment of) Sanskrit *sandhi* — the language using Pāṇini's
-   mechanism to encode Pāṇini's phonology.
-
-Non-termination is *allowed*: the language is Turing-complete and a program may
-fail to reach a normal form. This is a deliberate research-flavoured choice, not
-an oversight (see §7).
+Non-termination is permitted (the language is Turing-complete); a configurable
+*fuel* guards runaway reductions as tooling, not semantics.
 
 ---
 
-## 2. Lexical structure
+## 2. Lexical structure & bilingual naming
 
-Source is UTF-8. Identifiers may be Devanagari, Latin, or mixed; keywords are
-recognised in both scripts.
+Source is UTF-8. Identifiers may be Devanagari, Latin, or mixed.
 
-| Element        | Form                                                            |
-|----------------|-----------------------------------------------------------------|
-| Comment        | `#` … end of line                                               |
-| Daṇḍa (terminator) | `।` (U+0964); also `॥` and ASCII `;` as aliases             |
-| Rewrite arrow  | `->` or `→`                                                     |
-| Saṃjñā define  | `:=`                                                            |
-| Alternation    | `\|`                                                            |
-| Application    | `name(arg, …)`                                                  |
-| Variable       | `?name` (the `?` sigil; script-neutral)                         |
-| Numeral        | ASCII `0-9` or Devanagari `०-९`                                  |
-| String         | `"…"` with `\n`, `\t`, `\"`, `\\` escapes                       |
-| Keywords       | `सूत्र`/`sutra`, `संज्ञा`/`samjna`, `अधिकार`/`adhikara`, `प्रयोग`/`prayoga` |
+| Element            | Form                                                        |
+|--------------------|-------------------------------------------------------------|
+| Comment            | `#` … end of line                                           |
+| Daṇḍa (terminator) | `।` (also `॥`, `;`)                                         |
+| Variable           | `?name`                                                     |
+| Integer / Float    | `42`, `-3`, `3.14` (ASCII or Devanagari digits)             |
+| String             | `"…"` with `\n \t \" \\` escapes                            |
+| Rule arrow         | `->` or `→`                                                 |
+| Lambda arrow       | `=>`                                                        |
+| Saṃjñā define      | `:=`                                                        |
+| Operators          | `+ - * / %  == != < <= > >=  && \|\|  ++  ::  \|>  >> >>=`   |
 
-Identifiers accept the full Devanagari block (so conjuncts and *mātrā*s — e.g.
-`क्रमगुणित`, `रिक्त` — lex as a single token) but exclude the daṇḍa punctuation.
-Hyphens are **not** identifier characters (use compounds or `_`).
+**Keywords** (each bilingual): `सूत्र`/`fn`, `संज्ञा`/`type`, `अधिकार`/`section`,
+`प्रयोग`/`eval`, `उपयोग`/`import`, `अस्तु`/`let`, `अतः`/`in`, `चेत्`/`if`,
+`तर्हि`/`then`, `अन्यथा`/`else`.
+
+**Aliases.** The parser canonicalises identifiers, so `add`/`योग` → `+`,
+`map` → `प्रति`, `print` → `मुद्रण`, `true` → `सत्य`, etc. Programs written in
+Latin and in Devanagari are the same program.
 
 ---
 
-## 3. Grammar (EBNF)
+## 3. Surface syntax (EBNF, sugar shown)
 
 ```ebnf
-program      = { declaration } ;
-declaration  = sutra_decl | samjna_decl | adhikara_decl | prayoga_decl ;
+program     = { decl } ;
+decl        = rule | samjna | section | prayoga | import ;
+rule        = ("सूत्र"|"fn")   expr "->" expr DANDA ;
+samjna      = ("संज्ञा"|"type") IDENT [ "(" params ")" ] ":=" expr {"|" expr} DANDA ;
+prayoga     = ("प्रयोग"|"eval") expr DANDA ;
+import      = ("उपयोग"|"import") STRING DANDA ;
 
-sutra_decl   = ("सूत्र" | "sutra") term "->" term DANDA ;
-samjna_decl  = ("संज्ञा" | "samjna") IDENT [ "(" param {"," param} ")" ]
-                 ":=" term { "|" term } DANDA ;
-adhikara_decl= ("अधिकार" | "adhikara") IDENT DANDA ;   (* section header *)
-prayoga_decl = ("प्रयोग" | "prayoga") term DANDA ;       (* expr to evaluate *)
-
-term         = VAR | STRING | NUMERAL | IDENT [ "(" term {"," term} ")" ] ;
+expr        = "let" VAR "=" expr "in" expr
+            | "if" expr "then" expr "else" expr
+            | infix ;
+infix       = (* Pratt parsing of the operators above, by precedence *) ;
+unary       = ["-"|"!"] postfix ;
+postfix     = primary { "(" [ args ] ")" } ;          (* application *)
+primary     = INT | FLOAT | STRING | VAR | IDENT
+            | "[" [ args ] "]"                         (* list literal *)
+            | "(" params ")" "=>" expr                 (* lambda *)
+            | "(" expr ")" ;                           (* grouping *)
 ```
 
-* A bare `IDENT` is a **nullary symbol** (a constant / constructor).
-* `IDENT(args)` is an **application**.
-* There is no distinction between "functions" and "constructors": a symbol
-  reduces iff some rule's left-hand side matches it.
-* `अधिकार` (section header) is organisational only in v1 (no scoping yet — see
-  §9). `प्रयोग E।` registers an expression to be evaluated and printed.
+Desugaring (every construct elaborates to `Sym` / `App` / `Lam` / literals):
+
+| Surface                  | Core                                              |
+|--------------------------|---------------------------------------------------|
+| `a + b`, `a == b`, …     | `Sym("+", [a, b])`, `Sym("==", …)`               |
+| `a :: b`                 | `युग्म(a, b)`                                      |
+| `[x, y, z]`              | `युग्म(x, युग्म(y, युग्म(z, रिक्त)))`             |
+| `a && b` / `a \|\| b` / `!a` | `च(a,b)` / `वा(a,b)` / `न(a)`                  |
+| `x \|> f`                | `f(x)` (appends `x` as the last argument)        |
+| `let ?x = e in b`        | `((?x) => b)(e)`                                  |
+| `if c then a else b`     | `यदि(c, a, b)`                                     |
+| `a >> b` / `a >>= k`     | `अनुक्रम(a, b)` / `बन्ध(a, k)`                    |
 
 ---
 
-## 4. Saṃjñā = types = grammar productions
+## 4. The core term language
 
-A **saṃjñā** (संज्ञा, "technical name / class") simultaneously serves as an
-algebraic data type and a grammar production:
-
-```
-संज्ञा संख्या := ० | उत्तर(संख्या)।                    # natural numbers
-संज्ञा सत्यता := सत्य | असत्य।                          # booleans
-संज्ञा सूची(?क) := रिक्त | युग्म(?क, सूची(?क))।         # polymorphic lists
-संज्ञा दोष := दोष(?सन्देश)।                              # error values
-```
-
-The reading: an alternative's **head is a data constructor**, and each
-**argument is a field type** (a parameter, a reference to another saṃjñā, or a
-nested constructor). This separation is what allows a type whose constructor
-shares its own name (`दोष := दोष(?सन्देश)`) to be checked without looping —
-type references only ever recurse into strictly smaller sub-terms.
-
-**Typing is optional and structural** (decision: *optional / structural*). The
-engine never enforces types; membership is computed on demand. The checker
-answers "does term *t* inhabit saṃjñā *S*?" and is exposed via:
-
-* the `--check` CLI flag (reports the saṃjñās each result inhabits), and
-* `:type EXPR` in the REPL.
-
-This matches the fluid nature of pure rewriting: types document and classify,
-they do not gate evaluation.
+A term is one of: a variable `?x`; a native `Int`, `Float`, or `Str`; a symbol
+application `name(args…)` (nullary = constant/constructor); a lambda
+`(params) => body`; or an application `f(args…)` of a function *value*. The
+parser produces a `Sym` when the head is a literal name and an `App` when the
+head is a variable, lambda, or parenthesised expression — that distinction is
+what makes both named functions and lambdas first-class.
 
 ---
 
-## 5. Control flow is library code
+## 5. Saṃjñā = types = grammar productions (optional, structural)
 
-There are no built-in conditionals. Branching is pattern-matching on boolean
-*terms*, defined entirely in `std/tarka.sutra`:
+A saṃjñā doubles as an algebraic data type and a grammar production:
 
 ```
-सूत्र यदि(सत्य, ?तदा, ?अन्यथा) -> ?तदा।
-सूत्र यदि(असत्य, ?तदा, ?अन्यथा) -> ?अन्यथा।
+संज्ञा सत्यता := सत्य | असत्य।
+संज्ञा सूची(?त) := रिक्त | युग्म(?त, सूची(?त))।
+संज्ञा दोष := दोष(?सन्देश)।
 ```
 
-Because reduction is **outermost / lazy** (§6), `यदि` does not evaluate the
-branch it discards — so an ordinary three-argument rule behaves like a proper
-conditional, and recursion guarded by `यदि` terminates.
+Native values are recognised under built-in saṃjñā names: `संख्या` (Int),
+`दशांश` (Float), `अक्षरमाला` (String). Typing is **optional and structural** —
+never enforced; membership is computed on demand and surfaced via `--check` and
+the REPL's `:type`.
 
 ---
 
-## 6. The rewrite engine
+## 6. Reduction & conflict resolution
 
-Evaluation = repeated rewriting to a normal form. Two decisions define its
-behaviour.
-
-### 6.1 Reduction order: leftmost-outermost
-
-A single step tries to rewrite the **root** redex first; only if no rule matches
-the root does it descend left-to-right into arguments. This yields lazy
-evaluation:
-
-* `यदि(सत्य, t, e)` fires at the root immediately → `t`, never touching `e`.
-* When the root *cannot* fire (e.g. `क्रमगुणित(योग(१,२))` — `योग(१,२)` is not yet
-  a `उत्तर`/`०` constructor), descent reduces the argument just enough for the
-  root to match on the next step. Arguments are thus forced only as demanded.
-
-### 6.2 Conflict resolution: paratva (परत्व)
-
-When several rules match the same redex, the **latest-declared** rule wins
-(*vipratiṣedhe paraṃ kāryam*). This implements *apavāda* (exceptions) directly:
-write the general rule first, then the specific overrides after it.
-
-```
-सूत्र वर्ग(?क्ष) -> अन्य।      # general (utsarga)
-सूत्र वर्ग(अ)   -> स्वर।       # exception (apavāda) — declared later, so it wins
-```
-
-Implementation: rules are scanned in reverse declaration order; the first match
-is applied. Standard-library modules are loaded in a fixed order so their
-indices compose predictably; a user file is appended after the prelude.
-
-> **Interaction note.** Under outermost reduction a *general fallback* rule fires
-> before its arguments are evaluated — which is exactly the desired apavāda
-> behaviour for dispatch on constructors/constants. For value-dependent
-> decisions, write rules whose patterns require constructors (e.g. structural
-> `तुल्य` on `०`/`उत्तर`); those force their arguments via descent and stay sound.
-
-### 6.3 Matching
-
-Matching is one-way (the subject term has no variables) and **non-linear**: a
-variable occurring twice in a left-hand side must bind structurally equal
-sub-terms.
-
-```
-सूत्र यमल(?क, ?क) -> समान।   # fires only when both arguments are equal
-```
-
-`यमल(योग(१,१), २)` → `समान` (after both sides reduce to `२`); `यमल(१, २)` is
-left stuck.
+* **Leftmost-outermost reduction.** The root redex is tried first; arguments are
+  reduced only as demanded. This keeps `यदि` (a library rule) lazy — the unused
+  branch is never evaluated.
+* **Builtins are strict.** Native operations (`+`, `==`, `++`, …) reduce their
+  arguments to values first, then compute. They are tried only after user rules.
+* **Higher-order reduction.** Applying a lambda β-reduces (with currying and
+  over-application); applying a function reference or partial application
+  saturates it into a call.
+* **Paratva.** When several user rules match a redex, the **latest-declared**
+  wins (`vipratiṣedhe paraṃ kāryam`) — so a specific rule after a general one is
+  an apavāda (exception).
+* **Non-linear matching.** A variable repeated in a left-hand side must bind
+  structurally equal sub-terms.
 
 ---
 
 ## 7. Failure model
 
-Decision: **stuck terms + doṣa values** — both are pure, and there are no
-exceptions or panics in the language.
+There are no exceptions. Failure is pure and takes two forms:
 
-1. **Stuck terms.** If no rule applies and a term is not a value, it simply stops
-   rewriting. The normal form *is* the irreducible term. `शीर्ष(५)` (head of a
-   number) reduces to `शीर्ष(५)` — the term itself signals "no rule here."
-2. **doṣa (दोष) — errors as values.** Library rules may *return* an error term
-   for recoverable failures, which is ordinary data that can be inspected or
-   pattern-matched:
+1. **Stuck terms.** A term with no applicable rule simply stops reducing; the
+   normal form *is* the irreducible term (e.g. `शीर्ष(5)`).
+2. **doṣa values.** Recoverable errors are returned as ordinary `दोष` data —
+   `शीर्ष([])` ⇒ `दोष("रिक्ता सूची")`, `5 / 0` ⇒ `दोष("शून्येन भागः …")` — which
+   can be inspected and pattern-matched.
 
-   ```
-   सूत्र शीर्ष(रिक्त) -> दोष("रिक्ता सूची")।   # head of empty list → fault
-   सूत्र शीर्ष(युग्म(?क, ?श)) -> ?क।
-   ```
-
-The only failures the *runtime* (the Rust host) reports are **parse errors** and
-**possible non-termination**. Because non-termination is permitted by the
-semantics, it is handled as tooling, not language: a configurable **fuel**
-(step limit, default 1,000,000) stops runaway reductions and reports
-`out of fuel`. Purity is preserved.
+The runtime itself only reports parse errors and possible non-termination (via
+the fuel limit).
 
 ---
 
-## 8. Numerals and the standard library
+## 8. Pure effect-as-data I/O
 
-Numerals are **sugar** for Peano terms: `०` is `Term::con("०")`, `उत्तर(n)` is the
-successor, and the numeral `५` parses to `उत्तर(उत्तर(उत्तर(उत्तर(उत्तर(०)))))`.
-The pretty-printer collapses Peano terms back to numerals (Devanagari by
-default; `--ascii` for Latin).
+A program stays pure: `मुख्य` (main) evaluates to an **action**, a data term
+built from these constructors, which the runtime then performs:
 
-The standard library is **written in Sūtra** (`std/*.sutra`, embedded in the
-binary) and loaded as a prelude:
+| Constructor      | Meaning                                          |
+|------------------|--------------------------------------------------|
+| `शुद्ध(x)`        | yield `x`, do nothing (`pure`/`return`)          |
+| `मुद्रण(s)`       | print `s`, yield `एकक` (`print`)                 |
+| `पठन`            | read a line, yield it (`read`)                   |
+| `बन्ध(m, k)`      | run `m`, then run `k(result)` (`bind`, `>>=`)    |
+| `अनुक्रम(a, b)`   | run `a`, then `b` (`seq`, `>>`)                  |
 
-| Module           | Contents                                                        |
+```
+सूत्र मुख्य ->
+  मुद्रण("नाम?") >> बन्ध(पठन, (?न) => मुद्रण("नमस्ते, " ++ ?न))।
+```
+
+The program only *builds* the action tree; `effect.rs` walks it performing the
+actual effects. Purity is preserved.
+
+---
+
+## 9. Modules
+
+`उपयोग "path"।` (import) loads another `.sutra` file (relative to the importer)
+and merges its declarations *before* the importing file's, so a file can
+override what it imports (paratva). Cycles are broken automatically. Namespacing
+remains flat for now (see roadmap).
+
+---
+
+## 10. The standard library (written in Sūtra)
+
+| Module           | Highlights                                                     |
 |------------------|-----------------------------------------------------------------|
-| `गणित` ganita    | `योग` +, `गुणन` ×, `पूर्व` pred, `वियोग` monus, `क्रमगुणित` factorial, `तुल्य` =, `न्यूनसम` ≤ |
-| `तर्क` tarka     | `न` not, `च` and, `वा` or, `यदि` if, `यमल` (nonlinear demo)      |
-| `सूची` suchi     | `दीर्घ` length, `योजन` append, `विपर्यय` reverse, `शीर्ष` head, `पुच्छ` tail, `सदस्य` member |
-| `संधि` sandhi    | vowel sandhi as rewrite rules (the dogfooding showcase)         |
+| `core`           | saṃjñās सत्यता / सूची / दोष                                     |
+| `तर्क` tarka     | `न` not, `च` and, `वा` or, `यदि` if, `यमल` (nonlinear)          |
+| `गणित` ganita    | `वर्ग`, `द्विगुण`, `क्रमगुणित`, `सम`/`विषम`, `महत्तम`/`अल्पतम`, `श्रेणी` |
+| `सूची` suchi     | `दीर्घ`, `योजन`, `विपर्यय`, `शीर्ष`, `पुच्छ`, `प्रति` map, `छन्न` filter, `संहार` fold, `सदस्य`, `समष्टि` |
+| `io`             | `अनुक्रम` sequencing                                            |
 
-Higher-order list functions (`map`/`fold`) are intentionally **out of scope for
-v1** — the term language is first-order. See §9.
-
----
-
-## 9. Known limitations & future work
-
-* **First-order only.** No higher-order functions yet; `map`/`fold` need an
-  `apply`/defunctionalisation layer.
-* **No true subsequence/associative matching.** Pāṇini's rules operate on flat
-  phoneme *strings* with context. v1 uses first-order matching over cons-lists;
-  sandhi is modelled on `युग्म`/`रिक्त` lists. Real *pratyāhāra* and contextual
-  ( `_` environment) rules are future work.
-* **`अधिकार` is organisational only.** No namespacing/scoping is enforced yet;
-  the symbol table is flat.
-* **No sharing.** Outermost reduction without graph sharing can recompute
-  duplicated sub-terms; fine for the examples, but a real implementation would
-  want call-by-need.
-* **Structural typing is loose** for polymorphism (type arguments to saṃjñā
-  references are not unified, only the head saṃjñā is checked).
+Arithmetic/comparison/`++`/`दीर्घ`(string)/`रूप`(show)/`अंश`/`अक्षर` are native
+builtins.
 
 ---
 
-## 10. A worked reduction trace
+## 11. Limitations & future work
 
-`क्रमगुणित(२)` under outermost reduction + paratva (numerals shown sugared):
-
-```
-क्रमगुणित(२)
-  → गुणन(२, क्रमगुणित(१))                 # क्रमगुणित(उत्तर(?क)) rule, ?क = १
-  → योग(२, गुणन(१, क्रमगुणित(१)))         # गुणन(उत्तर(?क),?ख) rule
-  → उत्तर(योग(१, गुणन(१, क्रमगुणित(१))))   # योग(उत्तर(?क),?ख) rule (root fires)
-  → … (inner योग / गुणन / क्रमगुणित forced by descent as needed) …
-  → २                                       # normal form
-```
-
-The discarded-branch laziness of `यदि`, the apavāda behaviour of paratva, and
-the "stuck term vs doṣa" failure model can all be observed directly via the CLI:
-
-```sh
-sutra eval "यदि(सत्य, ७, क्रमगुणित(लूप))"   # ⇒ ७   (else branch never evaluated)
-sutra run examples/paratva.sutra            # specific rules override the general one
-sutra run examples/dosha.sutra              # doṣa values and a stuck term
-sutra eval "क्रमगुणित(६)" --check            # ⇒ ७२० : संख्या
-```
+* **Call-by-name** β/`let`: arguments are substituted unevaluated, so a value
+  bound and used many times can be recomputed. Call-by-need (sharing) is the
+  next performance step.
+* **First-order matching only** — no true subsequence/contextual (`_`) rules
+  yet, so real Pāṇinian sandhi is approximated over cons-lists.
+* **Capture-avoidance** in substitution is shadow-aware but does not α-rename;
+  in practice rule RHSs close their lambdas before β so this is rarely visible.
+* **Flat namespaces** (`अधिकार` is organisational). No `Map`/records/tuples yet,
+  no file/args/time effects yet, no static type checking. See the roadmap.

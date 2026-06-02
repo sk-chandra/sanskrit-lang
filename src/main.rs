@@ -1,23 +1,20 @@
 //! The `sutra` command-line interface.
 //!
 //! Usage:
-//!   sutra run FILE.sutra [options]   evaluate every `प्रयोग` in FILE
-//!   sutra FILE.sutra      [options]   (same as `run`)
-//!   sutra eval "EXPR"     [options]   evaluate a single expression
-//!   sutra repl            [options]   start an interactive session
+//!   sutra run FILE.sutra [options]   run FILE (executes मुख्य/main if present,
+//!                                    otherwise evaluates every प्रयोग)
+//!   sutra FILE.sutra     [options]   (same as run)
+//!   sutra eval "EXPR"    [options]   evaluate a single expression
+//!   sutra repl           [options]   interactive session
 //!
-//! Options:
-//!   --fuel N        max rewrite steps before giving up (default 1000000)
-//!   --ascii         print numerals with Latin digits instead of Devanagari
-//!   --no-prelude    do not load the standard library
-//!   --check         after each result, report which saṃjñās it inhabits
-//!   --steps         report the number of rewrite steps taken
+//! Options: --fuel N  --ascii  --no-prelude  --check  --steps
 
-use std::io::{self, BufRead, Write};
+use std::path::Path;
 use std::process::exit;
 
+use sutra::effect::Runner;
 use sutra::engine::{Engine, DEFAULT_FUEL};
-use sutra::{ast::Program, load_prelude, parser, pretty, samjna};
+use sutra::{ast::Program, load_file, load_prelude, parser, pretty, samjna};
 
 struct Options {
     fuel: u64,
@@ -29,15 +26,25 @@ struct Options {
 
 impl Default for Options {
     fn default() -> Self {
-        Options {
-            fuel: DEFAULT_FUEL,
-            ascii: false,
-            no_prelude: false,
-            check: false,
-            steps: false,
-        }
+        Options { fuel: DEFAULT_FUEL, ascii: false, no_prelude: false, check: false, steps: false }
     }
 }
+
+const USAGE: &str = "\
+सूत्र — Sūtra interpreter
+
+usage:
+  sutra run FILE.sutra [options]   run FILE (executes मुख्य/main, else प्रयोग)
+  sutra FILE.sutra     [options]   (same as run)
+  sutra eval \"EXPR\"    [options]   evaluate a single expression
+  sutra repl           [options]   interactive session
+
+options:
+  --fuel N        max rewrite steps before giving up
+  --ascii         Latin digits instead of Devanagari
+  --no-prelude    do not load the standard library
+  --check         report which saṃjñās each result inhabits
+  --steps         report the number of rewrite steps taken";
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -50,16 +57,14 @@ fn main() {
     let mut positional: Vec<String> = Vec::new();
     let mut i = 0;
     while i < args.len() {
-        let a = &args[i];
-        match a.as_str() {
+        match args[i].as_str() {
             "--ascii" => opts.ascii = true,
             "--no-prelude" => opts.no_prelude = true,
             "--check" => opts.check = true,
             "--steps" => opts.steps = true,
             "--fuel" => {
                 i += 1;
-                let v = args.get(i).and_then(|s| s.parse::<u64>().ok());
-                match v {
+                match args.get(i).and_then(|s| s.parse::<u64>().ok()) {
                     Some(n) => opts.fuel = n,
                     None => {
                         eprintln!("--fuel requires a number");
@@ -71,7 +76,7 @@ fn main() {
                 println!("{}", USAGE);
                 return;
             }
-            _ => positional.push(a.clone()),
+            a => positional.push(a.to_string()),
         }
         i += 1;
     }
@@ -85,7 +90,6 @@ fn main() {
         "run" => ("run", &positional[1..]),
         "eval" => ("eval", &positional[1..]),
         "repl" => ("repl", &positional[1..]),
-        // Bare argument: treat as a file to run.
         _ => ("run", &positional[..]),
     };
 
@@ -102,22 +106,6 @@ fn main() {
     }
 }
 
-const USAGE: &str = "\
-सूत्र — Sūtra interpreter
-
-usage:
-  sutra run FILE.sutra [options]   evaluate every प्रयोग in FILE
-  sutra FILE.sutra     [options]   (same as run)
-  sutra eval \"EXPR\"    [options]   evaluate a single expression
-  sutra repl           [options]   start an interactive session
-
-options:
-  --fuel N        max rewrite steps before giving up (default 1000000)
-  --ascii         print numerals with Latin digits
-  --no-prelude    do not load the standard library
-  --check         report which saṃjñās each result inhabits
-  --steps         report the number of rewrite steps taken";
-
 fn base_program(opts: &Options) -> Result<Program, String> {
     if opts.no_prelude {
         Ok(Program::default())
@@ -127,19 +115,23 @@ fn base_program(opts: &Options) -> Result<Program, String> {
 }
 
 fn cmd_run(rest: &[String], opts: &Options) -> Result<(), String> {
-    let path = rest
-        .first()
-        .ok_or_else(|| "run: expected a file path".to_string())?;
-    let src = std::fs::read_to_string(path).map_err(|e| format!("cannot read {}: {}", path, e))?;
-
+    let path = rest.first().ok_or("run: expected a file path")?;
     let mut prog = base_program(opts)?;
-    let file_prog = parser::parse_program(&src).map_err(|e| e.to_string())?;
+    let file_prog = load_file(Path::new(path))?;
     let prayogas = file_prog.prayogas.clone();
     prog.extend(file_prog);
 
+    // If the program defines मुख्य (main), execute it as an action.
+    if let Some(action) = prog.main_action() {
+        let engine = Engine::new(&prog, opts.fuel);
+        let runner = Runner { engine: &engine, ascii: opts.ascii };
+        runner.run(action);
+        return Ok(());
+    }
+
     if prayogas.is_empty() {
         eprintln!(
-            "(no प्रयोग expressions in {} — nothing to evaluate. Add e.g. `प्रयोग क्रमगुणित(५)।`)",
+            "(no मुख्य and no प्रयोग in {} — nothing to run. Add `सूत्र मुख्य -> …।` or `प्रयोग …।`)",
             path
         );
         return Ok(());
@@ -147,29 +139,26 @@ fn cmd_run(rest: &[String], opts: &Options) -> Result<(), String> {
 
     let engine = Engine::new(&prog, opts.fuel);
     for expr in &prayogas {
-        let outcome = engine.normalize(expr);
-        print_result(&prog, expr, &outcome, opts);
+        print_result(&prog, expr, &engine.normalize(expr), opts);
     }
     Ok(())
 }
 
 fn cmd_eval(rest: &[String], opts: &Options) -> Result<(), String> {
-    let expr_src = rest
-        .first()
-        .ok_or_else(|| "eval: expected an expression".to_string())?;
+    let expr_src = rest.first().ok_or("eval: expected an expression")?;
     let prog = base_program(opts)?;
     let expr = parser::parse_expr(expr_src).map_err(|e| e.to_string())?;
     let engine = Engine::new(&prog, opts.fuel);
-    let outcome = engine.normalize(&expr);
-    print_result(&prog, &expr, &outcome, opts);
+    print_result(&prog, &expr, &engine.normalize(&expr), opts);
     Ok(())
 }
 
 fn cmd_repl(opts: &Options) -> Result<(), String> {
+    use std::io::{self, BufRead, Write};
     let prog = base_program(opts)?;
     let engine = Engine::new(&prog, opts.fuel);
 
-    println!("सूत्र REPL — type a term and press enter. `:help` for commands, `:quit` to exit.");
+    println!("सूत्र REPL — type a term; `:help` for commands, `:quit` to exit.");
     let stdin = io::stdin();
     let mut stdout = io::stdout();
     loop {
@@ -178,47 +167,37 @@ fn cmd_repl(opts: &Options) -> Result<(), String> {
         let mut line = String::new();
         if stdin.lock().read_line(&mut line).map_err(|e| e.to_string())? == 0 {
             println!();
-            break; // EOF
+            break;
         }
         let line = line.trim();
         if line.is_empty() {
             continue;
         }
-        if line.starts_with(':') {
-            let mut parts = line.splitn(2, char::is_whitespace);
-            let cmd = parts.next().unwrap();
+        if let Some(rest) = line.strip_prefix(':') {
+            let mut parts = rest.splitn(2, char::is_whitespace);
+            let cmd = parts.next().unwrap_or("");
             let arg = parts.next().unwrap_or("").trim();
             match cmd {
-                ":quit" | ":q" => break,
-                ":help" | ":h" => {
-                    println!(
-                        ":quit  exit   |  :rules  list rules  |  :samjnas  list types  |  \
-                         :type EXPR  classify a term"
-                    );
-                }
-                ":rules" => {
+                "quit" | "q" => break,
+                "help" | "h" => println!(
+                    ":quit  :rules  :samjnas  :type EXPR  (evaluate by typing a term)"
+                ),
+                "rules" => {
                     for r in &prog.rules {
-                        println!(
-                            "  {} -> {}",
-                            pretty::show(&r.lhs, opts.ascii),
-                            pretty::show(&r.rhs, opts.ascii)
-                        );
+                        println!("  {} -> {}", pretty::show(&r.lhs, opts.ascii), pretty::show(&r.rhs, opts.ascii));
                     }
                 }
-                ":samjnas" => {
+                "samjnas" => {
                     for s in &prog.samjnas {
                         println!("  {}", s.name);
                     }
                 }
-                ":type" => match parser::parse_expr(arg) {
+                "type" => match parser::parse_expr(arg) {
                     Ok(t) => {
                         let nf = engine.normalize(&t).term;
                         let names = samjna::classify(&prog, &nf);
-                        if names.is_empty() {
-                            println!("  (inhabits no declared saṃjñā)");
-                        } else {
-                            println!("  {} : {}", pretty::show(&nf, opts.ascii), names.join(", "));
-                        }
+                        let ty = if names.is_empty() { "(none)".into() } else { names.join(", ") };
+                        println!("  {} : {}", pretty::show(&nf, opts.ascii), ty);
                     }
                     Err(e) => println!("  {}", e),
                 },
@@ -227,10 +206,7 @@ fn cmd_repl(opts: &Options) -> Result<(), String> {
             continue;
         }
         match parser::parse_expr(line) {
-            Ok(t) => {
-                let outcome = engine.normalize(&t);
-                print_result(&prog, &t, &outcome, opts);
-            }
+            Ok(t) => print_result(&prog, &t, &engine.normalize(&t), opts),
             Err(e) => println!("  {}", e),
         }
     }
@@ -238,22 +214,16 @@ fn cmd_repl(opts: &Options) -> Result<(), String> {
 }
 
 fn print_result(prog: &Program, input: &sutra::Term, outcome: &sutra::Outcome, opts: &Options) {
-    let lhs = pretty::show(input, opts.ascii);
-    let rhs = pretty::show(&outcome.term, opts.ascii);
-    print!("{}  ⇒  {}", lhs, rhs);
+    print!("{}  ⇒  {}", pretty::show(input, opts.ascii), pretty::show(&outcome.term, opts.ascii));
     if opts.steps {
         print!("   [{} steps]", outcome.steps);
     }
     if outcome.out_of_fuel {
-        print!("   ⚠ out of fuel (possible non-termination)");
+        print!("   ⚠ out of fuel");
     }
     println!();
     if opts.check {
         let names = samjna::classify(prog, &outcome.term);
-        if names.is_empty() {
-            println!("    : (inhabits no declared saṃjñā)");
-        } else {
-            println!("    : {}", names.join(", "));
-        }
+        println!("    : {}", if names.is_empty() { "(none)".into() } else { names.join(", ") });
     }
 }

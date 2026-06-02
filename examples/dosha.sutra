@@ -1,17 +1,8 @@
-# दोष and stuck terms — the two faces of "failure" in Sūtra.
-# Run with:  sutra run examples/dosha.sutra
+# दोष and stuck terms — the two faces of failure. No exceptions: a failure is
+# either an error *value* you can inspect, or a term that simply stops reducing.
+# Run: sutra run examples/dosha.sutra
 
-# 1. An error-as-value: taking the head of an empty list yields a दोष term,
-#    which is ordinary data you can inspect or recover from.
-प्रयोग शीर्ष(रिक्त)।
-
-# 2. Recovering from a दोष: यदि लets us choose a default. Here we ask whether
-#    a list is empty first and supply ० as a fallback head.
-सूत्र सुरक्षितशीर्ष(रिक्त) -> ०।
-सूत्र सुरक्षितशीर्ष(युग्म(?क, ?श)) -> ?क।
-प्रयोग सुरक्षितशीर्ष(रिक्त)।
-
-# 3. A stuck term: there is no rule for the head of a number, so the term simply
-#    does not reduce. The normal form *is* the (irreducible) term — Sūtra has no
-#    exceptions, only terms that stop rewriting.
-प्रयोग शीर्ष(५)।
+प्रयोग शीर्ष([])।          # head of empty list ⇒ दोष("रिक्ता सूची")
+प्रयोग शीर्ष([9, 8])।      # ⇒ 9
+प्रयोग 5 / 0।              # ⇒ दोष("शून्येन भागः …")  (errors are data)
+प्रयोग शीर्ष(5)।           # no rule applies ⇒ the term stays stuck: शीर्ष(5)

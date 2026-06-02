@@ -1,29 +1,20 @@
-# तर्क — logic. Booleans are just two constants, सत्य (true) and असत्य (false),
-# and every "control structure" is an ordinary rewrite rule.
+# तर्क — logic. Booleans are the constants सत्य / असत्य; every control form is
+# an ordinary rewrite rule. (&&, ||, ! and `if` are sugar for these.)
 
 अधिकार तर्क।
 
-# सत्यता — the saṃjñā (type) of booleans.
-संज्ञा सत्यता := सत्य | असत्य।
-
-# न — logical not.
 सूत्र न(सत्य) -> असत्य।
 सूत्र न(असत्य) -> सत्य।
 
-# च — conjunction ("and"). Short-circuits on the first argument.
 सूत्र च(सत्य, ?ख) -> ?ख।
 सूत्र च(असत्य, ?ख) -> असत्य।
 
-# वा — disjunction ("or").
 सूत्र वा(सत्य, ?ख) -> सत्य।
 सूत्र वा(असत्य, ?ख) -> ?ख।
 
-# यदि — the conditional. Because reduction is outermost (lazy), the branch
-# that is not chosen is never evaluated: `यदि` is just a three-argument rule,
-# not a special form.
+# यदि — the conditional. Lazy because reduction is outermost.
 सूत्र यदि(सत्य, ?तदा, ?अन्यथा) -> ?तदा।
 सूत्र यदि(असत्य, ?तदा, ?अन्यथा) -> ?अन्यथा।
 
-# यमल — a demonstration of non-linear matching: two structurally equal
-# arguments rewrite to "समान" (equal); otherwise the term is left stuck.
+# यमल — non-linear matching demo: equal arguments rewrite to समान.
 सूत्र यमल(?क, ?क) -> समान।
