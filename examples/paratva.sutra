@@ -1,0 +1,14 @@
+# परत्व — conflict resolution. When two rules match the same term, the one
+# declared *later* wins (vipratiṣedhe paraṃ kāryam). This makes a specific rule
+# written after a general one behave as an apavāda (exception).
+# Run with:  sutra run examples/paratva.sutra
+
+# General rule: anything is classified as "अन्य" (other)...
+सूत्र वर्ग(?क्ष) -> अन्य।
+# ...but these specific cases, declared later, override it:
+सूत्र वर्ग(अ) -> स्वर।        # 'अ' is a vowel
+सूत्र वर्ग(क) -> व्यञ्जन।     # 'क' is a consonant
+
+प्रयोग वर्ग(अ)।    # => स्वर   (specific wins over general)
+प्रयोग वर्ग(क)।    # => व्यञ्जन
+प्रयोग वर्ग(ग)।    # => अन्य   (only the general rule matches)

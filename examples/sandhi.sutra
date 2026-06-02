@@ -1,0 +1,16 @@
+# संधि — vowel sandhi as rewriting. Run with:  sutra run examples/sandhi.sutra
+#
+# A "word" is a सूची of phonemes. Adjacent vowels combine by the junction rules
+# in std/sandhi.sutra; consonants (here just plain constants) pass through.
+
+# अ + इ -> ए   (गुण sandhi)
+प्रयोग संधि(युग्म(अ, युग्म(इ, रिक्त)))।
+
+# अ + उ -> ओ
+प्रयोग संधि(युग्म(अ, युग्म(उ, रिक्त)))।
+
+# अ + अ -> आ   (सवर्णदीर्घ)
+प्रयोग संधि(युग्म(अ, युग्म(अ, रिक्त)))।
+
+# A consonant followed by a vowel junction: क (a + i) -> क ए
+प्रयोग संधि(युग्म(क, युग्म(अ, युग्म(इ, रिक्त))))।

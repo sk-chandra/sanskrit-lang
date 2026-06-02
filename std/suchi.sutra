@@ -1,0 +1,35 @@
+# सूची — lists. A list is either रिक्त (empty) or युग्म(head, tail) (a cons cell).
+
+अधिकार सूची।
+
+# सूची(?क) — the (polymorphic) saṃjñā of lists of ?क.
+संज्ञा सूची(?क) := रिक्त | युग्म(?क, सूची(?क))।
+
+# दोष — the saṃjñā of error values. An error is ordinary data: it carries a
+# message and can be inspected or pattern-matched like anything else.
+संज्ञा दोष := दोष(?सन्देश)।
+
+# दीर्घ — length.
+सूत्र दीर्घ(रिक्त) -> ०।
+सूत्र दीर्घ(युग्म(?क, ?श)) -> उत्तर(दीर्घ(?श))।
+
+# योजन — append (concatenate two lists).
+सूत्र योजन(रिक्त, ?य) -> ?य।
+सूत्र योजन(युग्म(?क, ?श), ?य) -> युग्म(?क, योजन(?श, ?य))।
+
+# विपर्यय — reverse.
+सूत्र विपर्यय(रिक्त) -> रिक्त।
+सूत्र विपर्यय(युग्म(?क, ?श)) -> योजन(विपर्यय(?श), युग्म(?क, रिक्त))।
+
+# शीर्ष — head. Taking the head of an empty list yields a दोष (error value)
+# rather than getting stuck.
+सूत्र शीर्ष(रिक्त) -> दोष("रिक्ता सूची")।
+सूत्र शीर्ष(युग्म(?क, ?श)) -> ?क।
+
+# पुच्छ — tail.
+सूत्र पुच्छ(रिक्त) -> दोष("रिक्ता सूची")।
+सूत्र पुच्छ(युग्म(?क, ?श)) -> ?श।
+
+# सदस्य — membership test for a natural number in a list of naturals.
+सूत्र सदस्य(?ल, रिक्त) -> असत्य।
+सूत्र सदस्य(?ल, युग्म(?क, ?श)) -> वा(तुल्य(?ल, ?क), सदस्य(?ल, ?श))।
