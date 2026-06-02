@@ -6,6 +6,7 @@ use crate::names::devanagari_digits;
 
 pub fn show(term: &Term, ascii: bool) -> String {
     match term {
+        Term::Share(c) => show(&c.borrow(), ascii),
         Term::Int(n) => {
             let s = n.to_string();
             if ascii {

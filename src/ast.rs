@@ -4,7 +4,9 @@
 //! (integers, floats, strings) and the two ingredients of higher-order
 //! programming: lambdas and application.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 /// A term: the single syntactic category of the language.
 #[derive(Clone, Debug, PartialEq)]
@@ -25,6 +27,11 @@ pub enum Term {
     /// Application of a function *value* (a lambda or a function reference) to
     /// arguments: `f(args...)` where `f` is not a literal symbol name.
     App(Box<Term>, Vec<Term>),
+    /// A *shared thunk* — the call-by-need cell. A variable used more than once
+    /// is bound to one of these, so reducing any occurrence updates them all.
+    /// Shares are an internal runtime device; they never appear in source and
+    /// are stripped from a normal form before it leaves the engine.
+    Share(Rc<RefCell<Term>>),
 }
 
 impl Term {
@@ -40,6 +47,38 @@ impl Term {
     /// Used by builtins to decide whether their arguments are ready.
     pub fn is_value_atom(&self) -> bool {
         matches!(self, Term::Int(_) | Term::Float(_) | Term::Str(_))
+    }
+
+    /// Wrap a term in a fresh shared thunk (idempotent: an existing Share is
+    /// returned unchanged so cells are not nested).
+    pub fn shared(t: Term) -> Term {
+        match t {
+            Term::Share(_) => t,
+            other => Term::Share(Rc::new(RefCell::new(other))),
+        }
+    }
+
+    /// Follow a chain of shared thunks to the current contents at the top
+    /// (shallow): the result's head is not a Share, but its children may be.
+    pub fn peel(&self) -> Term {
+        match self {
+            Term::Share(c) => c.borrow().peel(),
+            other => other.clone(),
+        }
+    }
+
+    /// A deep copy with every Share replaced by its current contents. Used to
+    /// hand a clean, share-free normal form to the rest of the program.
+    pub fn strip(&self) -> Term {
+        match self {
+            Term::Share(c) => c.borrow().strip(),
+            Term::Sym(n, args) => Term::Sym(n.clone(), args.iter().map(|a| a.strip()).collect()),
+            Term::App(f, args) => {
+                Term::App(Box::new(f.strip()), args.iter().map(|a| a.strip()).collect())
+            }
+            Term::Lam(p, b) => Term::Lam(p.clone(), Box::new(b.strip())),
+            other => other.clone(),
+        }
     }
 }
 

@@ -26,12 +26,18 @@ impl<'a> Engine<'a> {
         Engine { rules: &prog.rules, fuel }
     }
 
-    /// Match a pattern against a concrete term (one-way, non-linear).
+    /// Match a pattern against a concrete term (one-way, non-linear). The term
+    /// may contain shared thunks, which are looked through transparently.
     fn match_term(pat: &Term, term: &Term, binds: &mut Bindings) -> bool {
+        // See through a shared thunk to its current contents.
+        if let Term::Share(c) = term {
+            return Self::match_term(pat, &c.borrow(), binds);
+        }
         match pat {
             Term::Var(v) => {
                 if let Some(prev) = binds.get(v) {
-                    prev == term
+                    // Non-linear use: compare share-free snapshots.
+                    prev.strip() == term.strip()
                 } else {
                     binds.insert(v.clone(), term.clone());
                     true
@@ -50,6 +56,47 @@ impl<'a> Engine<'a> {
             // Lambdas / applications in patterns are matched structurally.
             other => other == term,
         }
+    }
+
+    /// Count occurrences of variable `v` in `t`, saturating at 2 (enough to know
+    /// whether a binding is used more than once).
+    fn occurs(t: &Term, v: &str) -> usize {
+        match t {
+            Term::Var(x) => (x == v) as usize,
+            Term::Sym(_, args) | Term::App(_, args) => {
+                let mut n = match t {
+                    Term::App(f, _) => Self::occurs(f, v),
+                    _ => 0,
+                };
+                for a in args {
+                    n += Self::occurs(a, v);
+                    if n >= 2 {
+                        return 2;
+                    }
+                }
+                n
+            }
+            Term::Lam(params, body) => {
+                if params.iter().any(|p| p == v) {
+                    0 // shadowed
+                } else {
+                    Self::occurs(body, v)
+                }
+            }
+            _ => 0,
+        }
+    }
+
+    /// Wrap each binding that is used more than once in the template into a
+    /// single shared thunk, so it is reduced at most once (call-by-need).
+    fn share_binds(binds: Bindings, template: &Term) -> Bindings {
+        binds
+            .into_iter()
+            .map(|(k, val)| {
+                let v = if Self::occurs(template, &k) >= 2 { Term::shared(val) } else { val };
+                (k, v)
+            })
+            .collect()
     }
 
     /// Capture-avoiding (shadow-aware) substitution.
@@ -72,6 +119,8 @@ impl<'a> Engine<'a> {
                 Box::new(Self::subst(f, binds)),
                 args.iter().map(|a| Self::subst(a, binds)).collect(),
             ),
+            // A shared thunk is a runtime value with no free template variables.
+            Term::Share(_) => t.clone(),
         }
     }
 
@@ -87,12 +136,14 @@ impl<'a> Engine<'a> {
                 binds.insert(p.clone(), a.clone());
             }
             let rest = params[m..].to_vec();
+            let binds = Self::share_binds(binds, body);
             Term::Lam(rest, Box::new(Self::subst(body, &binds)))
         } else {
             let mut binds = Bindings::new();
             for (p, a) in params.iter().zip(args.iter()) {
                 binds.insert(p.clone(), a.clone());
             }
+            let binds = Self::share_binds(binds, body);
             let reduced = Self::subst(body, &binds);
             if m == n {
                 reduced
@@ -108,6 +159,7 @@ impl<'a> Engine<'a> {
         for rule in self.rules.iter().rev() {
             let mut binds = Bindings::new();
             if Self::match_term(&rule.lhs, t, &mut binds) {
+                let binds = Self::share_binds(binds, &rule.rhs);
                 return Some(Self::subst(&rule.rhs, &binds));
             }
         }
@@ -154,8 +206,10 @@ impl<'a> Engine<'a> {
                 Self::step_arg(args, |a| self.step(a), move |na| Term::Sym(n.clone(), na))
             }
             Term::App(f, args) => {
+                // Look through shared thunks in the function position.
+                let fp = f.peel();
                 // β-reduce a lambda immediately.
-                if let Term::Lam(params, body) = f.as_ref() {
+                if let Term::Lam(params, body) = &fp {
                     return Some(Self::beta(params, body, args));
                 }
                 // Reduce the function position to a value first.
@@ -164,13 +218,25 @@ impl<'a> Engine<'a> {
                 }
                 // The function is now irreducible: applying a symbol (a function
                 // reference or partial application) saturates it into a call.
-                if let Term::Sym(name, prev) = f.as_ref() {
+                if let Term::Sym(name, prev) = &fp {
                     let mut call = prev.clone();
                     call.extend(args.iter().cloned());
                     return Some(Term::Sym(name.clone(), call));
                 }
                 let fc = f.clone();
                 Self::step_arg(args, |a| self.step(a), move |na| Term::App(fc.clone(), na))
+            }
+            // A shared thunk: advance its contents in place so that every other
+            // reference to the same cell sees the progress (call-by-need).
+            Term::Share(c) => {
+                let stepped = self.step(&c.borrow());
+                match stepped {
+                    Some(next) => {
+                        *c.borrow_mut() = next;
+                        Some(Term::Share(std::rc::Rc::clone(c)))
+                    }
+                    None => None,
+                }
             }
             // We do not reduce under a lambda until it is applied.
             _ => None,
@@ -186,9 +252,10 @@ impl<'a> Engine<'a> {
                     cur = next;
                     steps += 1;
                 }
-                None => return Outcome { term: cur, steps, out_of_fuel: false },
+                // Hand a clean, share-free normal form to the rest of the program.
+                None => return Outcome { term: cur.strip(), steps, out_of_fuel: false },
             }
         }
-        Outcome { term: cur, steps, out_of_fuel: true }
+        Outcome { term: cur.strip(), steps, out_of_fuel: true }
     }
 }

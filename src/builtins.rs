@@ -36,6 +36,10 @@ fn dosha(msg: &str) -> Term {
 /// operation does not apply (wrong arity or types) — the term is then left
 /// stuck, surfacing the mismatch honestly.
 pub fn apply(name: &str, args: &[Term]) -> Option<Term> {
+    // Arguments are strict and fully reduced here; peel any shared thunks so the
+    // operations below work on plain values.
+    let owned: Vec<Term> = args.iter().map(|a| a.strip()).collect();
+    let args: &[Term] = &owned;
     match name {
         "+" | "-" | "*" | "/" | "%" => arith(name, args),
         "neg" => negate(args),
