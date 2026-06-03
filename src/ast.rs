@@ -105,6 +105,26 @@ pub struct Rule {
     pub order: usize,
 }
 
+/// One rule of a sequence-rewriting system: a contiguous subsequence `lhs`
+/// (element patterns) is replaced by `rhs` wherever it occurs in a list.
+#[derive(Clone, Debug)]
+pub struct SeqRule {
+    pub lhs: Vec<Term>,
+    pub rhs: Vec<Term>,
+    pub order: usize,
+}
+
+/// A named sequence-rewriting system (क्रम) — the Pāṇinian contextual frontier.
+/// Applied as `NAME(list)`, it rewrites the list by repeatedly replacing the
+/// leftmost matching subsequence (latest-declared rule winning) until none
+/// applies. Context is expressed simply by including neighbouring elements in
+/// the pattern (`L A R -> L B R`).
+#[derive(Clone, Debug)]
+pub struct SeqSystem {
+    pub name: String,
+    pub rules: Vec<SeqRule>,
+}
+
 /// A saṃjñā (संज्ञा) — a named class of terms (an algebraic data type /
 /// grammar production).
 #[derive(Clone, Debug)]
@@ -119,6 +139,8 @@ pub struct Samjna {
 pub struct Program {
     pub rules: Vec<Rule>,
     pub samjnas: Vec<Samjna>,
+    /// Named sequence-rewriting systems (क्रम).
+    pub seq: Vec<SeqSystem>,
     /// `प्रयोग EXPR।` declarations: expressions to evaluate and print.
     pub prayogas: Vec<Term>,
     /// Imported file paths (`उपयोग "..."`), resolved by the loader.
@@ -135,6 +157,7 @@ impl Program {
             self.rules.push(r);
         }
         self.samjnas.extend(other.samjnas);
+        self.seq.extend(other.seq);
         self.prayogas.extend(other.prayogas);
         self.imports.extend(other.imports);
     }

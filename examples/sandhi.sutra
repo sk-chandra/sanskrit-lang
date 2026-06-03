@@ -1,16 +1,18 @@
-# संधि — Sanskrit vowel sandhi as rewriting (self-contained). A "word" is a list
-# of phonemes; adjacent vowels combine. The general traversal rule and the
-# specific junction rules cooperate via paratva. Run: sutra run examples/sandhi.sutra
+# संधि — Sanskrit vowel sandhi as a genuine sequence-rewriting system (क्रम).
+# A "word" is a list of phonemes; adjacent vowels combine wherever they meet.
+# Unlike hand-written recursion, a क्रम system applies its rules anywhere in the
+# sequence — leftmost position first, the later-declared rule winning (paratva).
+# Context is expressed by including neighbours in the pattern (L A R -> L B R).
+# Run: sutra run examples/sandhi.sutra
 
-# General traversal: keep the head, continue on the tail.
-सूत्र संधि([]) -> []।
-सूत्र संधि(युग्म(?क, ?श)) -> युग्म(?क, संधि(?श))।
+क्रम संधि {
+  [अ, इ] -> [ए]।      # अ + इ → ए   (गुण)
+  [अ, उ] -> [ओ]।      # अ + उ → ओ
+  [अ, अ] -> [आ]।      # अ + अ → आ   (सवर्णदीर्घ)
+  [आ, इ] -> [ऐ]।      # आ + इ → ऐ   (वृद्धि)
+}
 
-# Specific vowel junctions (declared later ⇒ they win under paratva).
-सूत्र संधि(युग्म(अ, युग्म(इ, ?श))) -> संधि(युग्म(ए, ?श))।   # अ + इ → ए (गुण)
-सूत्र संधि(युग्म(अ, युग्म(उ, ?श))) -> संधि(युग्म(ओ, ?श))।   # अ + उ → ओ
-सूत्र संधि(युग्म(अ, युग्म(अ, ?श))) -> संधि(युग्म(आ, ?श))।   # अ + अ → आ (सवर्णदीर्घ)
-
-प्रयोग संधि([अ, इ])।         # ⇒ [ए]
-प्रयोग संधि([अ, उ])।         # ⇒ [ओ]
-प्रयोग संधि([क, अ, इ])।      # ⇒ [क, ए]
+प्रयोग संधि([अ, इ])।                  # ⇒ [ए]
+प्रयोग संधि([क, अ, उ, त])।            # ⇒ [क, ओ, त]   (combines mid-word)
+प्रयोग संधि([अ, अ, इ])।               # ⇒ [ऐ]         (cascades: अ+अ→आ, then आ+इ→ऐ)
+प्रयोग संधि([र, आ, म, अ, इ, ति])।     # ⇒ [र, आ, म, ए, ति]

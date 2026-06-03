@@ -5,13 +5,14 @@
 //! the engine knows how to β-reduce lambdas, saturate function references, and
 //! apply strict native builtins.
 
-use crate::ast::{Bindings, Program, Rule, Term};
+use crate::ast::{Bindings, Program, Rule, SeqSystem, Term};
 use crate::builtins;
 
 pub const DEFAULT_FUEL: u64 = 5_000_000;
 
 pub struct Engine<'a> {
     rules: &'a [Rule],
+    seq: &'a [SeqSystem],
     pub fuel: u64,
 }
 
@@ -23,7 +24,7 @@ pub struct Outcome {
 
 impl<'a> Engine<'a> {
     pub fn new(prog: &'a Program, fuel: u64) -> Self {
-        Engine { rules: &prog.rules, fuel }
+        Engine { rules: &prog.rules, seq: &prog.seq, fuel }
     }
 
     /// Match a pattern against a concrete term (one-way, non-linear). The term
@@ -207,6 +208,20 @@ impl<'a> Engine<'a> {
         }
         match t {
             Term::Sym(name, args) => {
+                // A sequence-rewriting system applied to a list (strict in its
+                // argument, like a builtin).
+                if args.len() == 1 {
+                    if let Some(system) = self.seq.iter().find(|s| &s.name == name) {
+                        if let Some(a2) = self.step(&args[0]) {
+                            return Some(Term::Sym(name.clone(), vec![a2]));
+                        }
+                        if let Some(elems) = list_items(&args[0]) {
+                            let result = self.rewrite_seq(system, elems);
+                            return Some(make_list(result));
+                        }
+                        return None; // argument is not a list ⇒ stuck
+                    }
+                }
                 if builtins::is_builtin(name) {
                     // Builtins are strict: reduce the leftmost reducible
                     // argument first; only apply once every argument is a value.
@@ -260,6 +275,39 @@ impl<'a> Engine<'a> {
         }
     }
 
+    /// Rewrite a sequence under a क्रम system: repeatedly replace the leftmost
+    /// matching subsequence (latest-declared rule winning) until none applies.
+    fn rewrite_seq(&self, system: &SeqSystem, mut elems: Vec<Term>) -> Vec<Term> {
+        let mut budget = self.fuel;
+        'scan: loop {
+            for i in 0..elems.len() {
+                for rule in system.rules.iter().rev() {
+                    let k = rule.lhs.len();
+                    if k == 0 || i + k > elems.len() {
+                        continue;
+                    }
+                    let mut binds = Bindings::new();
+                    let matched = rule
+                        .lhs
+                        .iter()
+                        .zip(&elems[i..i + k])
+                        .all(|(p, e)| Self::match_term(p, e, &mut binds));
+                    if matched {
+                        let repl: Vec<Term> =
+                            rule.rhs.iter().map(|t| Self::subst(t, &binds)).collect();
+                        elems.splice(i..i + k, repl);
+                        if budget == 0 {
+                            return elems;
+                        }
+                        budget -= 1;
+                        continue 'scan; // restart from the left after each rewrite
+                    }
+                }
+            }
+            return elems;
+        }
+    }
+
     pub fn normalize(&self, t: &Term) -> Outcome {
         let mut cur = t.clone();
         let mut steps = 0u64;
@@ -275,4 +323,29 @@ impl<'a> Engine<'a> {
         }
         Outcome { term: cur.strip(), steps, out_of_fuel: true }
     }
+}
+
+/// Collect the elements of a proper cons-list (looking through shares), or
+/// `None` if `t` is not one.
+fn list_items(t: &Term) -> Option<Vec<Term>> {
+    let mut cur = t.peel();
+    let mut out = Vec::new();
+    loop {
+        match cur {
+            Term::Sym(ref n, ref a) if n == "रिक्त" && a.is_empty() => return Some(out),
+            Term::Sym(ref n, ref a) if n == "युग्म" && a.len() == 2 => {
+                out.push(a[0].clone());
+                cur = a[1].peel();
+            }
+            _ => return None,
+        }
+    }
+}
+
+fn make_list(items: Vec<Term>) -> Term {
+    let mut t = Term::con("रिक्त");
+    for it in items.into_iter().rev() {
+        t = Term::app("युग्म", vec![it, t]);
+    }
+    t
 }

@@ -2,7 +2,7 @@
 //! ergonomic sugar — infix operators, `let`, lambdas, `if`, list literals — all
 //! of which desugar here into the small core (`Sym` / `App` / `Lam` / literals).
 
-use crate::ast::{Program, Rule, Samjna, Term};
+use crate::ast::{Program, Rule, Samjna, SeqRule, SeqSystem, Term};
 use crate::lexer::{lex, Tok, Token};
 use crate::names::canonical;
 
@@ -124,6 +124,7 @@ impl Parser {
                 Tok::Eof => break,
                 Tok::KwSutra => prog.rules.push(self.rule()?),
                 Tok::KwSamjna => prog.samjnas.push(self.samjna()?),
+                Tok::KwKrama => prog.seq.push(self.seq_system()?),
                 Tok::KwAdhikara => {
                     self.bump();
                     self.ident_name()?;
@@ -198,6 +199,28 @@ impl Parser {
         }
         self.expect(&Tok::Danda, "daṇḍa after संज्ञा")?;
         Ok(Samjna { name, params, alts })
+    }
+
+    /// A sequence-rewriting system: `क्रम NAME { [elems] -> [elems]। … }`.
+    fn seq_system(&mut self) -> PResult<SeqSystem> {
+        self.expect(&Tok::KwKrama, "क्रम")?;
+        let name = self.ident_name()?;
+        self.expect(&Tok::LBrace, "'{' after क्रम name")?;
+        let mut rules = Vec::new();
+        let mut order = 0;
+        while self.peek() != &Tok::RBrace {
+            let lhs = self.bracket_elems()?;
+            self.expect(&Tok::Arrow, "'->' in क्रम rule")?;
+            let rhs = self.bracket_elems()?;
+            self.expect(&Tok::Danda, "daṇḍa after क्रम rule")?;
+            if lhs.is_empty() {
+                return self.err("a क्रम rule's left side must be non-empty");
+            }
+            rules.push(SeqRule { lhs, rhs, order });
+            order += 1;
+        }
+        self.expect(&Tok::RBrace, "'}'")?;
+        Ok(SeqSystem { name, rules })
     }
 
     fn ident_name(&mut self) -> PResult<String> {
@@ -330,7 +353,8 @@ impl Parser {
         }
     }
 
-    fn list_literal(&mut self) -> PResult<Term> {
+    /// Parse `[ e, e, … ]` and return the elements (no cons desugaring).
+    fn bracket_elems(&mut self) -> PResult<Vec<Term>> {
         self.expect(&Tok::LBrack, "'['")?;
         let mut items = Vec::new();
         if self.peek() != &Tok::RBrack {
@@ -344,7 +368,11 @@ impl Parser {
             }
         }
         self.expect(&Tok::RBrack, "']'")?;
-        Ok(cons_list(items))
+        Ok(items)
+    }
+
+    fn list_literal(&mut self) -> PResult<Term> {
+        Ok(cons_list(self.bracket_elems()?))
     }
 
     /// A map / record literal: `{ key: value, … }`. A bare identifier key is a

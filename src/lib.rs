@@ -66,6 +66,7 @@ fn load_file_inner(path: &Path, visited: &mut HashSet<PathBuf>) -> Result<Progra
     prog.extend(Program {
         rules: parsed.rules,
         samjnas: parsed.samjnas,
+        seq: parsed.seq,
         prayogas: parsed.prayogas,
         imports: vec![],
     });

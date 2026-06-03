@@ -247,6 +247,20 @@ fn pattern_guards() {
 }
 
 #[test]
+fn sequence_rewriting() {
+    let src = "क्रम संधि { [अ, इ] -> [ए]। [अ, उ] -> [ओ]। }\n\
+               क्रम संक्षेप { [?x, ?x] -> [?x]। }";
+    let mut prog = load_prelude().unwrap();
+    prog.extend(parser::parse_program(src).unwrap());
+    // Combines a vowel junction anywhere in the sequence.
+    assert_eq!(eval_in(&prog, "संधि([क, अ, इ, त])"), "[क, ए, त]");
+    // Variable patterns: collapse runs of equal elements.
+    assert_eq!(eval_in(&prog, "संक्षेप([1, 1, 2, 2, 3])"), "[1, 2, 3]");
+    // A non-list argument leaves the application stuck (honest failure).
+    assert_eq!(eval_in(&prog, "संधि(5)"), "संधि(5)");
+}
+
+#[test]
 fn static_checker() {
     let src = "संज्ञा रंग := लाल | हरित | नील।\n\
                सूत्र दुगुना(?x) -> ?x + ?y।\n\

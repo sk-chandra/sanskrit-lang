@@ -53,6 +53,10 @@ Options: `--fuel N`, `--ascii`, `--no-prelude`, `--check` (report saṃjñās),
 # Maps and records (a record is a map with field-name keys):
 प्रयोग {नाम: "पाणिनि", सूत्राणि: 3959}.सूत्राणि।             # ⇒ 3959
 
+# क्रम — sequence rewriting (the Pāṇinian frontier): rules over subsequences.
+क्रम संधि { [अ, इ] -> [ए]।  [अ, उ] -> [ओ]। }
+प्रयोग संधि([क, अ, इ, त])।                                  # ⇒ [क, ए, त]
+
 # Pure effect-as-data I/O with do-notation: मुख्य builds an action, the runtime runs it.
 सूत्र मुख्य -> क्रिया {
   मुद्रण("तव नाम किम्?");
@@ -65,6 +69,9 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
 
 * **Everything is rewriting.** `यदि` (if), `&&`, `::` etc. are ordinary rules /
   sugar, not built-in control flow. Reduction is outermost, so `यदि` is lazy.
+* **Sequence rewriting (क्रम).** Pāṇini also rewrote *sequences* with context;
+  a `क्रम` system rewrites subsequences of a list (leftmost-first, paratva,
+  variables, cascading) — so real sandhi expresses directly, not as recursion.
 * **Paratva conflict resolution.** When two rules match, the later one wins — a
   specific rule after a general one is an exception (apavāda).
 * **Pattern guards.** `सूत्र f(?n) | ?n < 2 -> ?n।` — a rule fires only when its
@@ -88,14 +95,14 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
 | [`examples/effects.sutra`](examples/effects.sutra) | files, args, time, randomness as effects |
 | [`examples/samvada.sutra`](examples/samvada.sutra) | do-notation dialogue (read & add numbers) |
 | [`examples/guards.sutra`](examples/guards.sutra) | pattern guards (fibonacci, sign, fizzbuzz) |
-| [`examples/sandhi.sutra`](examples/sandhi.sutra) | Sanskrit vowel sandhi as rewriting |
+| [`examples/sandhi.sutra`](examples/sandhi.sutra) | Sanskrit vowel sandhi as a क्रम sequence system |
 | [`examples/dosha.sutra`](examples/dosha.sutra)   | doṣa error-values and stuck terms |
 | [`examples/paratva.sutra`](examples/paratva.sutra) | later-rule-wins conflict resolution |
 
 ## Project layout
 
 ```
-src/        interpreter: lexer, parser, engine, builtins, effect, samjna, pretty, names, CLI
+src/        interpreter: lexer, parser, engine, builtins, bigint, effect, samjna, check, pretty, names, CLI
 std/        standard library, written in Sūtra (embedded into the binary)
 examples/   runnable example programs
 tests/      end-to-end tests
@@ -114,9 +121,10 @@ v0.4 (Phase 3 in progress) — a general-purpose practice language. Native data
 (maps & records, tuples, **arbitrary-precision integers**), higher-order
 functions, **call-by-need sharing**, ergonomic sugar (`do`-notation,
 **pattern guards**), pure effect-as-data I/O (console, files, args, env, time,
-randomness), modules, bilingual syntax, and a **static checker** (`sutra
-check`). Next (see [ROADMAP.md](ROADMAP.md)): module namespacing, the Pāṇinian
-contextual-matching frontier, and more tooling.
+randomness), modules, bilingual syntax, **`क्रम` sequence rewriting** (the
+Pāṇinian frontier), and a **static checker** (`sutra check`). Next (see
+[ROADMAP.md](ROADMAP.md)): module namespacing, *pratyāhāra* phoneme classes,
+and more tooling.
 
 ## License
 

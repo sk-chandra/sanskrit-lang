@@ -70,5 +70,8 @@ model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
   syntax that doesn't collide with record dot-access).
 * ⬜ Optional static *type* checking over saṃjñā (beyond the current linter).
 * ⬜ Tooling: formatter, language server, better REPL (history, completion).
-* ⬜ The Pāṇinian frontier: true subsequence / contextual (`_` environment)
-  matching and *pratyāhāra*, so real sandhi/grammar rules can be expressed.
+* ✅ **The Pāṇinian frontier (first cut).** `क्रम` sequence-rewriting systems:
+  named blocks of subsequence rules over lists, applied leftmost-first with
+  paratva, with variables, non-linear matching, context-by-neighbours, and
+  cascading. Real vowel sandhi now expresses directly.
+* ⬜ *Pratyāhāra* (named phoneme classes) and regex-style environments for क्रम.
