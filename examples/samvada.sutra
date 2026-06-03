@@ -1,0 +1,11 @@
+# संवाद — a short dialogue, written with do-notation (क्रिया { … }).
+# `?x <- m` binds the result of action m; bare lines are sequenced.
+# Run: sutra run examples/samvada.sutra   (then type two numbers)
+
+सूत्र मुख्य -> क्रिया {
+  मुद्रण("प्रथमा संख्या? (first number)");
+  ?अ <- पठन;
+  मुद्रण("द्वितीया संख्या? (second number)");
+  ?ब <- पठन;
+  मुद्रण("योगः = " ++ रूप(पूर्णांक(?अ) + पूर्णांक(?ब)))
+}।

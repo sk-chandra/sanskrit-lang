@@ -199,6 +199,39 @@ fn maps_and_records() {
 }
 
 #[test]
+fn tuples() {
+    assert_eq!(eval("(1, 2)"), "(1, 2)");
+    assert_eq!(eval("(1, \"two\", सत्य)"), "(1, \"two\", सत्य)");
+    assert_eq!(eval("प्रथम((10, 20))"), "10");
+    assert_eq!(eval("द्वितीय((10, 20))"), "20");
+    // Tuples pattern-match like any constructor.
+    let prog = parser::parse_program("सूत्र अदल((?a, ?b)) -> (?b, ?a)।").unwrap();
+    let mut full = load_prelude().unwrap();
+    full.extend(prog);
+    assert_eq!(eval_in(&full, "अदल((1, 2))"), "(2, 1)");
+    // A pair inhabits युग्मक.
+    let p = load_prelude().unwrap();
+    assert!(samjna::inhabits(&p, &nf(&p, "(1, 2)"), "युग्मक"));
+}
+
+#[test]
+fn do_notation() {
+    // do { ?x <- शुद्ध(10); ?y <- शुद्ध(5); शुद्ध(?x * ?y) } ⇒ 50, no I/O.
+    let prog = load_prelude().unwrap();
+    let engine = Engine::new(&prog, DEFAULT_FUEL);
+    let runner = Runner::new(&engine, true, vec![]);
+    let action =
+        parser::parse_expr("क्रिया { ?x <- शुद्ध(10); ?y <- शुद्ध(5); शुद्ध(?x * ?y) }").unwrap();
+    assert_eq!(pretty::show(&runner.run(action), true), "50");
+}
+
+#[test]
+fn parse_int_builtin() {
+    assert_eq!(eval("पूर्णांक(\"42\") + 8"), "50");
+    assert!(eval("पूर्णांक(\"नहीं\")").starts_with("दोष("));
+}
+
+#[test]
 fn map_is_a_kosha() {
     let prog = load_prelude().unwrap();
     assert!(samjna::inhabits(&prog, &nf(&prog, "{a: 1}"), "कोश"));

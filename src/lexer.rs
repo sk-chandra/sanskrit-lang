@@ -14,6 +14,7 @@ pub enum Tok {
     KwIf,
     KwThen,
     KwElse,
+    KwDo,
 
     // Literals & names.
     Ident(String),
@@ -27,6 +28,7 @@ pub enum Tok {
     Arrow,    // ->  →   (rule)
     FatArrow, // =>       (lambda)
     Define,   // :=       (saṃjñā)
+    LArrow,   // <-       (do-notation bind)
     Eq,       // =        (let binding)
     Bar,      // |        (saṃjñā alternation)
     LParen,
@@ -101,7 +103,7 @@ fn ident_continue(c: char) -> bool {
 
 /// Multi-character operators, longest first.
 const MULTI_OPS: &[&str] = &[
-    ">>=", "->", "=>", ":=", "==", "!=", "<=", ">=", "&&", "||", "++", "::", "|>", ">>",
+    ">>=", "->", "=>", ":=", "<-", "==", "!=", "<=", ">=", "&&", "||", "++", "::", "|>", ">>",
 ];
 
 pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
@@ -138,6 +140,7 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
                     "->" => Tok::Arrow,
                     "=>" => Tok::FatArrow,
                     ":=" => Tok::Define,
+                    "<-" => Tok::LArrow,
                     other => Tok::Op(other.to_string()),
                 };
                 out.push(Token { tok, line });
@@ -274,6 +277,7 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
                 "cet" | "चेत्" | "if" => Tok::KwIf,
                 "tarhi" | "तर्हि" | "then" => Tok::KwThen,
                 "anyatha" | "अन्यथा" | "else" => Tok::KwElse,
+                "kriya" | "क्रिया" | "do" => Tok::KwDo,
                 _ => Tok::Ident(name),
             };
             out.push(Token { tok, line });

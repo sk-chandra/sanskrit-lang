@@ -69,6 +69,11 @@ pub fn show(term: &Term, ascii: bool) -> String {
                 let inner: Vec<String> = items.iter().map(|x| show(x, ascii)).collect();
                 return format!("[{}]", inner.join(", "));
             }
+            // Tuple sugar.
+            if name == "रचना" && args.len() >= 2 {
+                let inner: Vec<String> = args.iter().map(|x| show(x, ascii)).collect();
+                return format!("({})", inner.join(", "));
+            }
             // Infix sugar for binary operators.
             if args.len() == 2 && is_operator(name) {
                 return format!("{} {} {}", show(&args[0], ascii), name, show(&args[1], ascii));

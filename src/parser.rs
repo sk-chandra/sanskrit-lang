@@ -90,6 +90,9 @@ impl Parser {
     fn peek(&self) -> &Tok {
         &self.toks[self.pos].tok
     }
+    fn peek2(&self) -> &Tok {
+        &self.toks[(self.pos + 1).min(self.toks.len() - 1)].tok
+    }
     fn line(&self) -> usize {
         self.toks[self.pos].line
     }
@@ -315,6 +318,7 @@ impl Parser {
             Tok::LParen => self.paren_or_lambda(),
             Tok::KwLet => self.let_expr(),
             Tok::KwIf => self.if_expr(),
+            Tok::KwDo => self.do_expr(),
             other => self.err(format!("expected an expression, found {:?}", other)),
         }
     }
@@ -406,7 +410,9 @@ impl Parser {
         } else if items.len() == 1 {
             Ok(items.into_iter().next().unwrap())
         } else {
-            self.err("parenthesised tuples are not supported (use a constructor)")
+            // A parenthesised comma list is a tuple, built as a रचना constructor
+            // (so it pattern-matches like any other constructor).
+            Ok(Term::Sym("रचना".to_string(), items))
         }
     }
 
@@ -425,6 +431,57 @@ impl Parser {
             Box::new(Term::Lam(vec![name], Box::new(body))),
             vec![bound],
         ))
+    }
+
+    /// `do { ?x <- m; n; … ; result }` — sequencing sugar over the effect
+    /// monad. `?x <- m; rest` ⇒ `बन्ध(m, (?x) => rest)`; a bare `e; rest` ⇒
+    /// `अनुक्रम(e, rest)`. The block must end with a result expression.
+    fn do_expr(&mut self) -> PResult<Term> {
+        self.expect(&Tok::KwDo, "do")?;
+        self.expect(&Tok::LBrace, "'{' after do")?;
+
+        enum Stmt {
+            Bind(String, Term),
+            Run(Term),
+        }
+        let mut stmts: Vec<Stmt> = Vec::new();
+        while self.peek() != &Tok::RBrace {
+            // `?x <- expr`  (bind) vs a bare action expression.
+            let stmt = match (self.peek(), self.peek2()) {
+                (Tok::Var(name), Tok::LArrow) => {
+                    let name = name.clone();
+                    self.bump(); // var
+                    self.bump(); // <-
+                    Stmt::Bind(name, self.expr()?)
+                }
+                _ => Stmt::Run(self.expr()?),
+            };
+            stmts.push(stmt);
+            // Statements are separated by a daṇḍa; the last one may omit it.
+            if self.peek() == &Tok::Danda {
+                self.bump();
+            }
+        }
+        self.expect(&Tok::RBrace, "'}'")?;
+
+        // The final statement is the result; it must be a plain expression.
+        let result = match stmts.pop() {
+            Some(Stmt::Run(e)) => e,
+            Some(Stmt::Bind(..)) => {
+                return self.err("a do-block must end with a result expression, not a '<-' bind")
+            }
+            None => return self.err("empty do-block"),
+        };
+        let mut acc = result;
+        for stmt in stmts.into_iter().rev() {
+            acc = match stmt {
+                Stmt::Bind(name, m) => {
+                    Term::app("बन्ध", vec![m, Term::Lam(vec![name], Box::new(acc))])
+                }
+                Stmt::Run(e) => Term::app("अनुक्रम", vec![e, acc]),
+            };
+        }
+        Ok(acc)
     }
 
     /// `if c then a else b`  ⇒  `यदि(c, a, b)`.

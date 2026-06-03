@@ -56,8 +56,9 @@ model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
 * ✅ **More effects.** File read/write (`सञ्चिकापाठ`/`सञ्चिकालेख`), program
   arguments (`प्राचलाः`), environment (`पर्यावरण`), time (`काल`), and randomness
   (`यादृच्छिक`) — all as effect-as-data the runtime performs.
-* ⬜ Tuples.
-* ⬜ `do`-notation sugar over `बन्ध`/`शुद्ध`.
+* ✅ **Tuples.** `(a, b, c)` builds a `रचना` constructor that pattern-matches
+  like any other; `प्रथम`/`द्वितीय` for pairs (the `युग्मक` saṃjñā).
+* ✅ **`do`-notation** (`क्रिया { ?x <- m; … }`) desugaring over `बन्ध`/`अनुक्रम`.
 
 ## Phase 3 — scale & tooling
 

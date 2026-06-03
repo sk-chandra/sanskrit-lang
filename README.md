@@ -50,10 +50,12 @@ Options: `--fuel N`, `--ascii`, `--no-prelude`, `--check` (report saṃjñās),
 # Maps and records (a record is a map with field-name keys):
 प्रयोग {नाम: "पाणिनि", सूत्राणि: 3959}.सूत्राणि।             # ⇒ 3959
 
-# Pure effect-as-data I/O: मुख्य builds an action; the runtime performs it.
-सूत्र मुख्य ->
-  मुद्रण("तव नाम किम्?") >>
-  बन्ध(पठन, (?न) => मुद्रण("नमस्ते, " ++ ?न ++ "!"))।
+# Pure effect-as-data I/O with do-notation: मुख्य builds an action, the runtime runs it.
+सूत्र मुख्य -> क्रिया {
+  मुद्रण("तव नाम किम्?");
+  ?न <- पठन;
+  मुद्रण("नमस्ते, " ++ ?न ++ "!")
+}।
 ```
 
 What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
@@ -79,6 +81,7 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
 | [`examples/fizzbuzz.sutra`](examples/fizzbuzz.sutra) | FizzBuzz as a folded, pure action |
 | [`examples/hello.sutra`](examples/hello.sutra)   | interactive I/O (print/read/bind) |
 | [`examples/effects.sutra`](examples/effects.sutra) | files, args, time, randomness as effects |
+| [`examples/samvada.sutra`](examples/samvada.sutra) | do-notation dialogue (read & add numbers) |
 | [`examples/sandhi.sutra`](examples/sandhi.sutra) | Sanskrit vowel sandhi as rewriting |
 | [`examples/dosha.sutra`](examples/dosha.sutra)   | doṣa error-values and stuck terms |
 | [`examples/paratva.sutra`](examples/paratva.sutra) | later-rule-wins conflict resolution |
@@ -101,11 +104,12 @@ cargo test
 
 ## Status
 
-v0.3 — a general-purpose practice language. Working: native data (maps &
-records, **arbitrary-precision integers**), higher-order functions,
-**call-by-need sharing**, ergonomic sugar, pure effect-as-data I/O (console,
-**files, args, env, time, randomness**), modules, bilingual syntax. Next (see
-[ROADMAP.md](ROADMAP.md)): tuples, `do`-notation, namespacing, and tooling.
+v0.3 — a general-purpose practice language. **Phase 2 complete:** native data
+(maps & records, tuples, **arbitrary-precision integers**), higher-order
+functions, **call-by-need sharing**, ergonomic sugar (incl. **`do`-notation**),
+pure effect-as-data I/O (console, **files, args, env, time, randomness**),
+modules, bilingual syntax. Next (see [ROADMAP.md](ROADMAP.md)): module
+namespacing, optional static typing, and tooling (Phase 3).
 
 ## License
 

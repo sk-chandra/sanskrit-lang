@@ -20,6 +20,7 @@ pub fn is_builtin(name: &str) -> bool {
             | "++"
             | "दीर्घ"
             | "रूप"
+            | "पूर्णांक"
             | "अंश"
             | "अक्षर"
             | "रिक्तकोश"
@@ -57,6 +58,7 @@ pub fn apply(name: &str, args: &[Term]) -> Option<Term> {
         "++" => concat(args),
         "दीर्घ" => length(args),
         "रूप" => show(args),
+        "पूर्णांक" => parse_int(args),
         "अंश" => substr(args),
         "अक्षर" => chars(args),
         "रिक्तकोश" => Some(Term::Map(vec![])),
@@ -330,6 +332,23 @@ fn length(args: &[Term]) -> Option<Term> {
     match args {
         [Term::Str(s)] => Some(Term::Int(s.chars().count() as i64)),
         [Term::Map(entries)] => Some(Term::Int(entries.len() as i64)),
+        _ => None,
+    }
+}
+
+fn parse_int(args: &[Term]) -> Option<Term> {
+    match args {
+        [Term::Int(_)] | [Term::Big(_)] => Some(args[0].clone()),
+        [Term::Str(s)] => {
+            let t = s.trim();
+            if let Ok(n) = t.parse::<i64>() {
+                Some(Term::Int(n))
+            } else if let Some(b) = BigInt::parse_decimal(t) {
+                Some(from_big(b))
+            } else {
+                Some(dosha(&format!("पूर्णांक: अमान्या संख्या \"{}\"", t)))
+            }
+        }
         _ => None,
     }
 }

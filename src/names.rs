@@ -14,6 +14,9 @@ const IDENT_ALIASES: &[(&str, &str)] = &[
     ("cons", "युग्म"),
     ("nil", "रिक्त"),
     ("none", "रिक्त"),
+    ("tuple", "रचना"),
+    ("fst", "प्रथम"),
+    ("snd", "द्वितीय"),
     // arithmetic (word spellings → operator symbol)
     ("add", "+"),
     ("योग", "+"),
@@ -44,6 +47,9 @@ const IDENT_ALIASES: &[(&str, &str)] = &[
     ("length", "दीर्घ"),
     ("to_str", "रूप"),
     ("show", "रूप"),
+    ("to_int", "पूर्णांक"),
+    ("parse_int", "पूर्णांक"),
+    ("int", "पूर्णांक"),
     ("substr", "अंश"),
     ("chars", "अक्षर"),
     // maps / records
