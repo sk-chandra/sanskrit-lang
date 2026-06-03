@@ -3,6 +3,7 @@
 //! calls them once their arguments are fully reduced.
 
 use crate::ast::Term;
+use crate::bigint::BigInt;
 
 /// Is `name` the head of a builtin operation?
 pub fn is_builtin(name: &str) -> bool {
@@ -146,9 +147,49 @@ fn map_values(args: &[Term]) -> Option<Term> {
 fn as_f64(t: &Term) -> Option<f64> {
     match t {
         Term::Int(n) => Some(*n as f64),
+        Term::Big(b) => Some(b.to_f64()),
         Term::Float(f) => Some(*f),
         _ => None,
     }
+}
+
+fn is_integer(t: &Term) -> bool {
+    matches!(t, Term::Int(_) | Term::Big(_))
+}
+
+fn as_big(t: &Term) -> Option<BigInt> {
+    match t {
+        Term::Int(n) => Some(BigInt::from_i64(*n)),
+        Term::Big(b) => Some(b.clone()),
+        _ => None,
+    }
+}
+
+/// Demote an arbitrary-precision result back to a native `Int` when it fits, so
+/// that a `Big` value is never used for something representable as `i64` (which
+/// keeps equality between the two representations correct).
+fn from_big(b: BigInt) -> Term {
+    match b.to_i64() {
+        Some(n) => Term::Int(n),
+        None => Term::Big(b),
+    }
+}
+
+fn big_arith(op: &str, x: &BigInt, y: &BigInt) -> Option<Term> {
+    Some(match op {
+        "+" => from_big(x.add(y)),
+        "-" => from_big(x.sub(y)),
+        "*" => from_big(x.mul(y)),
+        "/" => match x.div_rem(y) {
+            Some((q, _)) => from_big(q),
+            None => dosha("शून्येन भागः (division by zero)"),
+        },
+        "%" => match x.div_rem(y) {
+            Some((_, r)) => from_big(r),
+            None => dosha("शून्येन भागः (modulo by zero)"),
+        },
+        _ => return None,
+    })
 }
 
 fn arith(op: &str, args: &[Term]) -> Option<Term> {
@@ -156,29 +197,38 @@ fn arith(op: &str, args: &[Term]) -> Option<Term> {
         return None;
     }
     match (&args[0], &args[1]) {
+        // Fast path: both fit i64, with overflow promoting to big integers.
         (Term::Int(a), Term::Int(b)) => {
             let (a, b) = (*a, *b);
-            Some(match op {
-                "+" => Term::Int(a.wrapping_add(b)),
-                "-" => Term::Int(a.wrapping_sub(b)),
-                "*" => Term::Int(a.wrapping_mul(b)),
+            let checked = match op {
+                "+" => a.checked_add(b),
+                "-" => a.checked_sub(b),
+                "*" => a.checked_mul(b),
                 "/" => {
                     if b == 0 {
                         return Some(dosha("शून्येन भागः (division by zero)"));
                     }
-                    Term::Int(a / b)
+                    a.checked_div(b)
                 }
                 "%" => {
                     if b == 0 {
                         return Some(dosha("शून्येन भागः (modulo by zero)"));
                     }
-                    Term::Int(a % b)
+                    a.checked_rem(b)
                 }
                 _ => return None,
+            };
+            Some(match checked {
+                Some(v) => Term::Int(v),
+                None => big_arith(op, &BigInt::from_i64(a), &BigInt::from_i64(b))?,
             })
         }
+        // Either side is an arbitrary-precision integer.
+        (a, b) if is_integer(a) && is_integer(b) => {
+            big_arith(op, &as_big(a)?, &as_big(b)?)
+        }
+        // Otherwise floating point (if at least one side is a float).
         _ => {
-            // Promote to float if either side is numeric and at least one float.
             let a = as_f64(&args[0])?;
             let b = as_f64(&args[1])?;
             Some(match op {
@@ -195,14 +245,22 @@ fn arith(op: &str, args: &[Term]) -> Option<Term> {
 
 fn negate(args: &[Term]) -> Option<Term> {
     match args {
-        [Term::Int(n)] => Some(Term::Int(-n)),
+        [Term::Int(n)] => Some(match n.checked_neg() {
+            Some(v) => Term::Int(v),
+            None => from_big(BigInt::from_i64(*n).neg()),
+        }),
+        [Term::Big(b)] => Some(from_big(b.neg())),
         [Term::Float(f)] => Some(Term::Float(-f)),
         _ => None,
     }
 }
 
 fn structural_eq(a: &Term, b: &Term) -> bool {
-    // Compare numerically across Int/Float; otherwise structurally.
+    // Integers compare exactly (never via lossy f64); a float on either side
+    // compares numerically; everything else compares structurally.
+    if is_integer(a) && is_integer(b) {
+        return as_big(a) == as_big(b);
+    }
     if let (Some(x), Some(y)) = (as_f64(a), as_f64(b)) {
         return x == y;
     }
@@ -213,13 +271,11 @@ fn order(op: &str, args: &[Term]) -> Option<Term> {
     if args.len() != 2 {
         return None;
     }
-    let ord = match (&args[0], &args[1]) {
-        (Term::Str(a), Term::Str(b)) => a.cmp(b),
-        _ => {
-            let a = as_f64(&args[0])?;
-            let b = as_f64(&args[1])?;
-            a.partial_cmp(&b)?
-        }
+    let (a, b) = (&args[0], &args[1]);
+    let ord = match (a, b) {
+        (Term::Str(x), Term::Str(y)) => x.cmp(y),
+        _ if is_integer(a) && is_integer(b) => as_big(a)?.cmp(&as_big(b)?),
+        _ => as_f64(a)?.partial_cmp(&as_f64(b)?)?,
     };
     use std::cmp::Ordering::*;
     let b = match op {

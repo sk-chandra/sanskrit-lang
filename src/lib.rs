@@ -2,6 +2,7 @@
 //! functions, ergonomic sugar, and pure effect-as-data I/O.
 
 pub mod ast;
+pub mod bigint;
 pub mod builtins;
 pub mod effect;
 pub mod engine;

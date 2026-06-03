@@ -11,7 +11,7 @@ const NATIVE: &[&str] = &["संख्या", "दशांश", "अक्ष
 
 fn native_inhabits(name: &str, term: &Term) -> Option<bool> {
     match name {
-        "संख्या" => Some(matches!(term, Term::Int(_))),
+        "संख्या" => Some(matches!(term, Term::Int(_) | Term::Big(_))),
         "दशांश" => Some(matches!(term, Term::Float(_))),
         "अक्षरमाला" => Some(matches!(term, Term::Str(_))),
         "कोश" => Some(matches!(term, Term::Map(_))),

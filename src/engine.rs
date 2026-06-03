@@ -44,6 +44,7 @@ impl<'a> Engine<'a> {
                 }
             }
             Term::Int(a) => matches!(term, Term::Int(b) if a == b),
+            Term::Big(a) => matches!(term, Term::Big(b) if a == b),
             Term::Float(a) => matches!(term, Term::Float(b) if a == b),
             Term::Str(a) => matches!(term, Term::Str(b) if a == b),
             Term::Sym(name, pargs) => match term {
@@ -103,7 +104,7 @@ impl<'a> Engine<'a> {
     pub fn subst(t: &Term, binds: &Bindings) -> Term {
         match t {
             Term::Var(v) => binds.get(v).cloned().unwrap_or_else(|| Term::Var(v.clone())),
-            Term::Int(_) | Term::Float(_) | Term::Str(_) => t.clone(),
+            Term::Int(_) | Term::Big(_) | Term::Float(_) | Term::Str(_) => t.clone(),
             Term::Sym(name, args) => {
                 Term::Sym(name.clone(), args.iter().map(|a| Self::subst(a, binds)).collect())
             }

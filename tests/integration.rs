@@ -37,6 +37,29 @@ fn factorial_is_fast_and_exact() {
 }
 
 #[test]
+fn arbitrary_precision_integers() {
+    // 100! — exact, far beyond i64.
+    assert_eq!(
+        eval("क्रमगुणित(100)"),
+        "9332621544394415268169923885626670049071596826438162146859296389\
+521759999322991560894146397615651828625369792082722375825118521091686400\
+0000000000000000000000"
+    );
+    // Overflow promotes; results that fit demote back to Int.
+    assert_eq!(eval("9223372036854775807 + 1"), "9223372036854775808");
+    assert_eq!(eval("क्रमगुणित(21) / क्रमगुणित(20)"), "21");
+    assert_eq!(eval("क्रमगुणित(30) % 7"), "0");
+    // Exact equality where f64 would lie (both round to the same double).
+    assert_eq!(eval("क्रमगुणित(25) == क्रमगुणित(25) + 1"), "असत्य");
+    assert_eq!(eval("क्रमगुणित(30) > क्रमगुणित(29)"), "सत्य");
+    // Huge literals parse.
+    assert_eq!(
+        eval("1000000000000000000000 * 2"),
+        "2000000000000000000000"
+    );
+}
+
+#[test]
 fn comparison_and_logic() {
     assert_eq!(eval("2 < 3 && 5 == 5"), "सत्य");
     assert_eq!(eval("!(1 > 2) || असत्य"), "सत्य");

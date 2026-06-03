@@ -290,6 +290,10 @@ impl Parser {
                 self.bump();
                 Ok(Term::Int(n))
             }
+            Tok::Big(b) => {
+                self.bump();
+                Ok(Term::Big(b))
+            }
             Tok::Float(f) => {
                 self.bump();
                 Ok(Term::Float(f))

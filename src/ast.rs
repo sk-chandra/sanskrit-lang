@@ -15,6 +15,8 @@ pub enum Term {
     Var(String),
     /// A native integer literal.
     Int(i64),
+    /// An arbitrary-precision integer (used once a value no longer fits `i64`).
+    Big(crate::bigint::BigInt),
     /// A native floating-point literal.
     Float(f64),
     /// A native string literal.

@@ -15,8 +15,20 @@ pub fn show(term: &Term, ascii: bool) -> String {
                 devanagari_digits(&s)
             }
         }
+        Term::Big(b) => {
+            let s = b.to_decimal_string();
+            if ascii {
+                s
+            } else {
+                devanagari_digits(&s)
+            }
+        }
         Term::Float(f) => {
-            let s = format!("{}", f);
+            let mut s = format!("{}", f);
+            // Keep floats visibly distinct from integers (7.0, not 7).
+            if f.is_finite() && !s.contains(['.', 'e', 'E']) {
+                s.push_str(".0");
+            }
             if ascii {
                 s
             } else {

@@ -20,6 +20,7 @@ pub enum Tok {
     Var(String),
     Str(String),
     Int(i64),
+    Big(crate::bigint::BigInt),
     Float(f64),
 
     // Fixed punctuation.
@@ -244,11 +245,13 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
                     .parse()
                     .map_err(|_| LexError { msg: "invalid float".into(), line })?;
                 out.push(Token { tok: Tok::Float(f), line });
-            } else {
-                let n: i64 = int_part
-                    .parse()
-                    .map_err(|_| LexError { msg: "integer literal out of range".into(), line })?;
+            } else if let Ok(n) = int_part.parse::<i64>() {
                 out.push(Token { tok: Tok::Int(n), line });
+            } else {
+                // Too large for i64: an arbitrary-precision literal.
+                let big = crate::bigint::BigInt::parse_decimal(&int_part)
+                    .ok_or_else(|| LexError { msg: "invalid integer literal".into(), line })?;
+                out.push(Token { tok: Tok::Big(big), line });
             }
             continue;
         }
