@@ -51,10 +51,13 @@ model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
   `{k: v}`, dot access `r.field`, and `समावेश`/`प्राप्ति`/`अस्ति`/`निष्कास`/
   `कुञ्जिकाः`/`मूल्यानि` (insert/get/has/remove/keys/values). Records are maps
   with field-name keys. Recognised as the `कोश` saṃjñā.
+* ✅ **Arbitrary-precision integers.** Hand-rolled `BigInt`; the `i64` fast path
+  promotes on overflow and demotes results that fit. `क्रमगुणित(100)` is exact.
+* ✅ **More effects.** File read/write (`सञ्चिकापाठ`/`सञ्चिकालेख`), program
+  arguments (`प्राचलाः`), environment (`पर्यावरण`), time (`काल`), and randomness
+  (`यादृच्छिक`) — all as effect-as-data the runtime performs.
 * ⬜ Tuples.
-* ⬜ More effects: file read/write, program args, time, randomness, environment.
 * ⬜ `do`-notation sugar over `बन्ध`/`शुद्ध`.
-* ⬜ Arbitrary-precision integers (current ints are 64-bit and wrap).
 
 ## Phase 3 — scale & tooling
 

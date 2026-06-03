@@ -209,8 +209,33 @@ fn effect_as_data_runs_purely() {
     // बन्ध(शुद्ध(10), (?x) => शुद्ध(?x + 5)) executes to the value 15 with no I/O.
     let prog = load_prelude().unwrap();
     let engine = Engine::new(&prog, DEFAULT_FUEL);
-    let runner = Runner { engine: &engine, ascii: true };
+    let runner = Runner::new(&engine, true, vec![]);
     let action = parser::parse_expr("बन्ध(शुद्ध(10), (?x) => शुद्ध(?x + 5))").unwrap();
     let result = runner.run(action);
     assert_eq!(pretty::show(&result, true), "15");
+}
+
+#[test]
+fn world_effects() {
+    let prog = load_prelude().unwrap();
+    let engine = Engine::new(&prog, DEFAULT_FUEL);
+    let runner = Runner::new(&engine, true, vec!["a".into(), "b".into()]);
+
+    // Program arguments.
+    let args = parser::parse_expr("प्राचलाः").unwrap();
+    assert_eq!(pretty::show(&runner.run(args), true), "[\"a\", \"b\"]");
+
+    // File write → read roundtrip.
+    let path = std::env::temp_dir().join("sutra_world_effects_test.txt");
+    let p = path.to_string_lossy().replace('\\', "/");
+    let src = format!(
+        "बन्ध(सञ्चिकालेख(\"{p}\", \"नमस्ते\"), (?z) => सञ्चिकापाठ(\"{p}\"))"
+    );
+    let action = parser::parse_expr(&src).unwrap();
+    assert_eq!(pretty::show(&runner.run(action), true), "\"नमस्ते\"");
+
+    // Randomness in range, and the time effect yields a positive integer.
+    assert_eq!(pretty::show(&runner.run(parser::parse_expr("यादृच्छिक(1)").unwrap()), true), "0");
+    let t = parser::parse_expr("बन्ध(काल, (?t) => शुद्ध(?t > 0))").unwrap();
+    assert_eq!(pretty::show(&runner.run(t), true), "सत्य");
 }

@@ -1,0 +1,14 @@
+# Effects beyond the console — files, arguments, time, randomness — still pure
+# effect-as-data: मुख्य assembles the action, the runtime performs it.
+# Run: sutra run examples/effects.sutra alpha beta
+
+सूत्र मुख्य ->
+  सञ्चिकालेख("/tmp/sutra-out.txt", "नमस्ते सञ्चिका!") >>
+  बन्ध(सञ्चिकापाठ("/tmp/sutra-out.txt"), (?पाठ) =>
+    मुद्रण("सञ्चिका: " ++ ?पाठ) >>
+  बन्ध(प्राचलाः, (?आगताः) =>
+    मुद्रण("प्राचलाः: " ++ रूप(?आगताः)) >>
+  बन्ध(काल, (?समय) =>
+    मुद्रण("काल (>0): " ++ रूप(?समय > 0)) >>
+  बन्ध(यादृच्छिक(6), (?पाशकः) =>
+    मुद्रण("पाशकः (1–6): " ++ रूप(?पाशकः + 1))))))।

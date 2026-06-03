@@ -79,6 +79,18 @@ const IDENT_ALIASES: &[(&str, &str)] = &[
     ("seq", "अनुक्रम"),
     ("main", "मुख्य"),
     ("error", "दोष"),
+    // world effects
+    ("read_file", "सञ्चिकापाठ"),
+    ("readfile", "सञ्चिकापाठ"),
+    ("write_file", "सञ्चिकालेख"),
+    ("writefile", "सञ्चिकालेख"),
+    ("args", "प्राचलाः"),
+    ("getenv", "पर्यावरण"),
+    ("env", "पर्यावरण"),
+    ("time", "काल"),
+    ("now", "काल"),
+    ("random", "यादृच्छिक"),
+    ("rand", "यादृच्छिक"),
 ];
 
 /// Canonicalise an identifier (used by the parser on every `Ident`).

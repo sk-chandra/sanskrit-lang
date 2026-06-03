@@ -121,10 +121,12 @@ fn cmd_run(rest: &[String], opts: &Options) -> Result<(), String> {
     let prayogas = file_prog.prayogas.clone();
     prog.extend(file_prog);
 
-    // If the program defines मुख्य (main), execute it as an action.
+    // If the program defines मुख्य (main), execute it as an action. Any
+    // positional arguments after the file are passed to the program (प्राचलाः).
     if let Some(action) = prog.main_action() {
         let engine = Engine::new(&prog, opts.fuel);
-        let runner = Runner { engine: &engine, ascii: opts.ascii };
+        let prog_args: Vec<String> = rest.iter().skip(1).cloned().collect();
+        let runner = Runner::new(&engine, opts.ascii, prog_args);
         runner.run(action);
         return Ok(());
     }

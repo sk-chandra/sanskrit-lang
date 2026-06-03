@@ -78,6 +78,7 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
 | [`examples/kosha.sutra`](examples/kosha.sutra)   | maps & records: literals, dot access, queries |
 | [`examples/fizzbuzz.sutra`](examples/fizzbuzz.sutra) | FizzBuzz as a folded, pure action |
 | [`examples/hello.sutra`](examples/hello.sutra)   | interactive I/O (print/read/bind) |
+| [`examples/effects.sutra`](examples/effects.sutra) | files, args, time, randomness as effects |
 | [`examples/sandhi.sutra`](examples/sandhi.sutra) | Sanskrit vowel sandhi as rewriting |
 | [`examples/dosha.sutra`](examples/dosha.sutra)   | doṣa error-values and stuck terms |
 | [`examples/paratva.sutra`](examples/paratva.sutra) | later-rule-wins conflict resolution |
@@ -100,11 +101,11 @@ cargo test
 
 ## Status
 
-v0.3 — a general-purpose practice language. Working: native data (including
-maps & records), higher-order functions, **call-by-need sharing**, ergonomic
-sugar, pure effect-as-data I/O, modules, bilingual syntax. Next (see
-[ROADMAP.md](ROADMAP.md)): more effects (files/args/time), `do`-notation,
-arbitrary-precision integers, namespacing, and tooling.
+v0.3 — a general-purpose practice language. Working: native data (maps &
+records, **arbitrary-precision integers**), higher-order functions,
+**call-by-need sharing**, ergonomic sugar, pure effect-as-data I/O (console,
+**files, args, env, time, randomness**), modules, bilingual syntax. Next (see
+[ROADMAP.md](ROADMAP.md)): tuples, `do`-notation, namespacing, and tooling.
 
 ## License
 

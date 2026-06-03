@@ -201,8 +201,15 @@ built from these constructors, which the runtime then performs:
   मुद्रण("नाम?") >> बन्ध(पठन, (?न) => मुद्रण("नमस्ते, " ++ ?न))।
 ```
 
+Beyond the console there are *world* actions: `सञ्चिकापाठ(p)` / `सञ्चिकालेख(p, s)`
+(read / write a file), `प्राचलाः` (command-line arguments, a list of strings),
+`पर्यावरण(name)` (an environment variable), `काल` (current Unix time, seconds),
+and `यादृच्छिक(n)` (a random integer in `[0, n)`). Failing world actions yield a
+`दोष` value rather than aborting.
+
 The program only *builds* the action tree; `effect.rs` walks it performing the
-actual effects. Purity is preserved.
+actual effects. Purity is preserved. (Effects only run when a program is
+executed via `मुख्य`; in a `प्रयोग` they remain inert data.)
 
 ---
 
