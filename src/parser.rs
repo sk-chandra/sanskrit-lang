@@ -154,12 +154,19 @@ impl Parser {
     fn rule(&mut self) -> PResult<Rule> {
         self.expect(&Tok::KwSutra, "सूत्र")?;
         let lhs = self.expr()?;
+        // Optional guard: `lhs | guard -> rhs`.
+        let guard = if self.peek() == &Tok::Bar {
+            self.bump();
+            Some(self.expr()?)
+        } else {
+            None
+        };
         self.expect(&Tok::Arrow, "'->'")?;
         let rhs = self.expr()?;
         self.expect(&Tok::Danda, "daṇḍa after rule")?;
         let order = self.order;
         self.order += 1;
-        Ok(Rule { lhs, rhs, order })
+        Ok(Rule { lhs, guard, rhs, order })
     }
 
     fn samjna(&mut self) -> PResult<Samjna> {

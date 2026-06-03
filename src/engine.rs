@@ -168,6 +168,14 @@ impl<'a> Engine<'a> {
         for rule in self.rules.iter().rev() {
             let mut binds = Bindings::new();
             if Self::match_term(&rule.lhs, t, &mut binds) {
+                // A guard must reduce to सत्य for the rule to fire; otherwise we
+                // fall through to earlier-declared rules.
+                if let Some(guard) = &rule.guard {
+                    let g = self.normalize(&Self::subst(guard, &binds)).term;
+                    if g != Term::con("सत्य") {
+                        continue;
+                    }
+                }
                 let binds = Self::share_binds(binds, &rule.rhs);
                 return Some(Self::subst(&rule.rhs, &binds));
             }

@@ -4,6 +4,7 @@
 pub mod ast;
 pub mod bigint;
 pub mod builtins;
+pub mod check;
 pub mod effect;
 pub mod engine;
 pub mod lexer;

@@ -31,6 +31,9 @@ cargo run -q -- eval "map((?x) => mul(?x, ?x), [1,2,3,4])" --ascii
 cargo run -q -- run examples/fizzbuzz.sutra
 echo "विश्व" | cargo run -q -- run examples/hello.sutra
 
+# Statically check a file for likely mistakes (unbound vars, arity, exhaustiveness)
+cargo run -q -- check examples/guards.sutra
+
 # Interactive REPL
 cargo run -q -- repl
 ```
@@ -64,6 +67,8 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
   sugar, not built-in control flow. Reduction is outermost, so `यदि` is lazy.
 * **Paratva conflict resolution.** When two rules match, the later one wins — a
   specific rule after a general one is an exception (apavāda).
+* **Pattern guards.** `सूत्र f(?n) | ?n < 2 -> ?n।` — a rule fires only when its
+  guard holds, otherwise it falls through to an earlier rule.
 * **Pure failure.** Unmatched terms get *stuck* (the normal form is the term);
   recoverable errors are returned as `दोष` (doṣa) values. No exceptions.
 * **Pure I/O.** Effects are data (`शुद्ध`/`बन्ध`/`मुद्रण`/`पठन`) executed by the
@@ -82,6 +87,7 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
 | [`examples/hello.sutra`](examples/hello.sutra)   | interactive I/O (print/read/bind) |
 | [`examples/effects.sutra`](examples/effects.sutra) | files, args, time, randomness as effects |
 | [`examples/samvada.sutra`](examples/samvada.sutra) | do-notation dialogue (read & add numbers) |
+| [`examples/guards.sutra`](examples/guards.sutra) | pattern guards (fibonacci, sign, fizzbuzz) |
 | [`examples/sandhi.sutra`](examples/sandhi.sutra) | Sanskrit vowel sandhi as rewriting |
 | [`examples/dosha.sutra`](examples/dosha.sutra)   | doṣa error-values and stuck terms |
 | [`examples/paratva.sutra`](examples/paratva.sutra) | later-rule-wins conflict resolution |
@@ -104,12 +110,13 @@ cargo test
 
 ## Status
 
-v0.3 — a general-purpose practice language. **Phase 2 complete:** native data
+v0.4 (Phase 3 in progress) — a general-purpose practice language. Native data
 (maps & records, tuples, **arbitrary-precision integers**), higher-order
-functions, **call-by-need sharing**, ergonomic sugar (incl. **`do`-notation**),
-pure effect-as-data I/O (console, **files, args, env, time, randomness**),
-modules, bilingual syntax. Next (see [ROADMAP.md](ROADMAP.md)): module
-namespacing, optional static typing, and tooling (Phase 3).
+functions, **call-by-need sharing**, ergonomic sugar (`do`-notation,
+**pattern guards**), pure effect-as-data I/O (console, files, args, env, time,
+randomness), modules, bilingual syntax, and a **static checker** (`sutra
+check`). Next (see [ROADMAP.md](ROADMAP.md)): module namespacing, the Pāṇinian
+contextual-matching frontier, and more tooling.
 
 ## License
 

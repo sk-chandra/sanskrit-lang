@@ -60,10 +60,15 @@ model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
   like any other; `प्रथम`/`द्वितीय` for pairs (the `युग्मक` saṃjñā).
 * ✅ **`do`-notation** (`क्रिया { ?x <- m; … }`) desugaring over `बन्ध`/`अनुक्रम`.
 
-## Phase 3 — scale & tooling
+## Phase 3 — scale & tooling *(in progress, v0.4)*
 
-* Real module namespacing/scoping for `अधिकार`; an imports/package story.
-* Pattern guards; exhaustiveness and optional static type checking over saṃjñā.
-* Tooling: formatter, language server, better REPL (history, completion).
-* The Pāṇinian frontier: true subsequence / contextual (`_` environment)
+* ✅ **Pattern guards.** `सूत्र lhs | cond -> rhs।` — fires only when `cond` is
+  सत्य, falling through otherwise. Makes numeric base cases clean.
+* ✅ **Static checker** (`sutra check`). Unbound variables (error), constructor
+  arity (warning), and non-exhaustive single-argument matches (warning).
+* ⬜ Real module namespacing/scoping for `अधिकार` (needs a qualified-reference
+  syntax that doesn't collide with record dot-access).
+* ⬜ Optional static *type* checking over saṃjñā (beyond the current linter).
+* ⬜ Tooling: formatter, language server, better REPL (history, completion).
+* ⬜ The Pāṇinian frontier: true subsequence / contextual (`_` environment)
   matching and *pratyāhāra*, so real sandhi/grammar rules can be expressed.

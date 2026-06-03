@@ -1,6 +1,7 @@
 //! End-to-end tests for Sūtra v0.2: native data, higher-order functions,
 //! ergonomic sugar, bilingual aliases, and pure effect-as-data I/O.
 
+use sutra::check::{self, Severity};
 use sutra::effect::Runner;
 use sutra::engine::{Engine, DEFAULT_FUEL};
 use sutra::{load_prelude, parser, pretty, samjna, Program, Term};
@@ -223,6 +224,51 @@ fn do_notation() {
     let action =
         parser::parse_expr("क्रिया { ?x <- शुद्ध(10); ?y <- शुद्ध(5); शुद्ध(?x * ?y) }").unwrap();
     assert_eq!(pretty::show(&runner.run(action), true), "50");
+}
+
+#[test]
+fn pattern_guards() {
+    // Guarded base case declared last (so paratva tries it first); when its
+    // guard fails it falls through to the recursive clause.
+    let src = "सूत्र फिबो(?n) -> फिबो(?n - 1) + फिबो(?n - 2)।\n\
+               सूत्र फिबो(?n) | ?n < 2 -> ?n।";
+    let mut prog = load_prelude().unwrap();
+    prog.extend(parser::parse_program(src).unwrap());
+    assert_eq!(eval_in(&prog, "फिबो(10)"), "55");
+
+    let src2 = "सूत्र चिह्न(?n) -> शून्यम्।\n\
+                सूत्र चिह्न(?n) | ?n > 0 -> धनम्।\n\
+                सूत्र चिह्न(?n) | ?n < 0 -> ऋणम्।";
+    let mut prog2 = load_prelude().unwrap();
+    prog2.extend(parser::parse_program(src2).unwrap());
+    assert_eq!(eval_in(&prog2, "चिह्न(5)"), "धनम्");
+    assert_eq!(eval_in(&prog2, "चिह्न(-2)"), "ऋणम्");
+    assert_eq!(eval_in(&prog2, "चिह्न(0)"), "शून्यम्");
+}
+
+#[test]
+fn static_checker() {
+    let src = "संज्ञा रंग := लाल | हरित | नील।\n\
+               सूत्र दुगुना(?x) -> ?x + ?y।\n\
+               सूत्र नाम(लाल) -> \"r\"।\n\
+               सूत्र नाम(हरित) -> \"g\"।";
+    let target = parser::parse_program(src).unwrap();
+    let mut ctx = load_prelude().unwrap();
+    ctx.extend(target.clone());
+    let diags = check::check(&ctx, &target);
+
+    assert!(diags
+        .iter()
+        .any(|d| d.severity == Severity::Error && d.msg.contains("?y")));
+    assert!(diags
+        .iter()
+        .any(|d| d.msg.contains("non-exhaustive") && d.msg.contains("नील")));
+
+    // A correct program is clean.
+    let good = parser::parse_program("सूत्र वर्ग2(?x) -> ?x * ?x।").unwrap();
+    let mut ctx2 = load_prelude().unwrap();
+    ctx2.extend(good.clone());
+    assert!(check::check(&ctx2, &good).is_empty());
 }
 
 #[test]

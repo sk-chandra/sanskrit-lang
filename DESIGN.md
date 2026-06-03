@@ -65,7 +65,7 @@ Latin and in Devanagari are the same program.
 ```ebnf
 program     = { decl } ;
 decl        = rule | samjna | section | prayoga | import ;
-rule        = ("सूत्र"|"fn")   expr "->" expr DANDA ;
+rule        = ("सूत्र"|"fn")   expr [ "|" expr ] "->" expr DANDA ;  (* optional guard *)
 samjna      = ("संज्ञा"|"type") IDENT [ "(" params ")" ] ":=" expr {"|" expr} DANDA ;
 prayoga     = ("प्रयोग"|"eval") expr DANDA ;
 import      = ("उपयोग"|"import") STRING DANDA ;
@@ -163,6 +163,11 @@ the REPL's `:type`.
 * **Higher-order reduction.** Applying a lambda β-reduces (with currying and
   over-application); applying a function reference or partial application
   saturates it into a call.
+* **Guards.** A rule may carry a guard, `lhs | cond -> rhs`; it fires only if
+  `cond` (evaluated under the match's bindings) reduces to `सत्य`, otherwise the
+  search falls through to earlier-declared rules. Because the guard forces its
+  own arguments, numeric base cases are written directly (`फिबो(?n) | ?n < 2 ->
+  ?n`) — declare guarded special cases *last* so paratva tries them first.
 * **Paratva.** When several user rules match a redex, the **latest-declared**
   wins (`vipratiṣedhe paraṃ kāryam`) — so a specific rule after a general one is
   an apavāda (exception).
@@ -252,7 +257,20 @@ the map operations (`रिक्तकोश`/`समावेश`/`प्र�
 
 ---
 
-## 11. Limitations & future work
+## 11. Static checking (`sutra check`)
+
+Sūtra stays untyped, but `sutra check FILE` runs a lightweight linter that
+catches the most common mistakes without changing the language:
+
+* **unbound variables** — a `?x` used in a guard / right-hand side / प्रयोग that
+  no left-hand side or enclosing lambda binds (an error);
+* **constructor-arity mismatches** against saṃjñā declarations (a warning);
+* **non-exhaustive matches** — a one-argument function whose clauses cover some
+  but not all constructors of a single saṃjñā, with no catch-all (a warning).
+
+It exits non-zero if any error is found, so it can gate CI.
+
+## 12. Limitations & future work
 
 * **Numeric base cases need a guard.** Because a catch-all rule `f(?n)` matches
   an unevaluated argument before a literal-pattern rule `f(0)` can force it,

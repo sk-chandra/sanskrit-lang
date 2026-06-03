@@ -12,6 +12,7 @@
 use std::path::Path;
 use std::process::exit;
 
+use sutra::check::{self, Severity};
 use sutra::effect::Runner;
 use sutra::engine::{Engine, DEFAULT_FUEL};
 use sutra::{ast::Program, load_file, load_prelude, parser, pretty, samjna};
@@ -37,6 +38,7 @@ usage:
   sutra run FILE.sutra [options]   run FILE (executes मुख्य/main, else प्रयोग)
   sutra FILE.sutra     [options]   (same as run)
   sutra eval \"EXPR\"    [options]   evaluate a single expression
+  sutra check FILE.sutra           statically check FILE for likely mistakes
   sutra repl           [options]   interactive session
 
 options:
@@ -89,6 +91,7 @@ fn main() {
     let (cmd, rest) = match positional[0].as_str() {
         "run" => ("run", &positional[1..]),
         "eval" => ("eval", &positional[1..]),
+        "check" => ("check", &positional[1..]),
         "repl" => ("repl", &positional[1..]),
         _ => ("run", &positional[..]),
     };
@@ -96,6 +99,7 @@ fn main() {
     let result = match cmd {
         "run" => cmd_run(rest, &opts),
         "eval" => cmd_eval(rest, &opts),
+        "check" => cmd_check(rest, &opts),
         "repl" => cmd_repl(&opts),
         _ => unreachable!(),
     };
@@ -155,6 +159,44 @@ fn cmd_eval(rest: &[String], opts: &Options) -> Result<(), String> {
     Ok(())
 }
 
+fn cmd_check(rest: &[String], opts: &Options) -> Result<(), String> {
+    let path = rest.first().ok_or("check: expected a file path")?;
+    // Parse the file on its own (what we report on), and build a context with
+    // the prelude + imports so constructors/saṃjñās are known.
+    let src = std::fs::read_to_string(path).map_err(|e| format!("cannot read {}: {}", path, e))?;
+    let target = parser::parse_program(&src).map_err(|e| e.to_string())?;
+
+    let mut context = if opts.no_prelude { Program::default() } else { load_prelude()? };
+    context.extend(load_file(Path::new(path))?);
+
+    let diags = check::check(&context, &target);
+    let mut errors = 0;
+    for d in &diags {
+        let tag = match d.severity {
+            Severity::Error => {
+                errors += 1;
+                "error"
+            }
+            Severity::Warning => "warning",
+        };
+        eprintln!("{}: {}", tag, d.msg);
+    }
+    if diags.is_empty() {
+        println!("{}: no problems found.", path);
+    } else {
+        eprintln!(
+            "{}: {} error(s), {} warning(s).",
+            path,
+            errors,
+            diags.len() - errors
+        );
+    }
+    if errors > 0 {
+        exit(1);
+    }
+    Ok(())
+}
+
 fn cmd_repl(opts: &Options) -> Result<(), String> {
     use std::io::{self, BufRead, Write};
     let prog = base_program(opts)?;
@@ -186,7 +228,16 @@ fn cmd_repl(opts: &Options) -> Result<(), String> {
                 ),
                 "rules" => {
                     for r in &prog.rules {
-                        println!("  {} -> {}", pretty::show(&r.lhs, opts.ascii), pretty::show(&r.rhs, opts.ascii));
+                        let guard = match &r.guard {
+                            Some(g) => format!(" | {}", pretty::show(g, opts.ascii)),
+                            None => String::new(),
+                        };
+                        println!(
+                            "  {}{} -> {}",
+                            pretty::show(&r.lhs, opts.ascii),
+                            guard,
+                            pretty::show(&r.rhs, opts.ascii)
+                        );
                     }
                 }
                 "samjnas" => {

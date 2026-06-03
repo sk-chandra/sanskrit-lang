@@ -93,10 +93,13 @@ impl Term {
 /// Bindings produced by matching a pattern. Keys are variable names.
 pub type Bindings = HashMap<String, Term>;
 
-/// A rewrite rule (सूत्र): `lhs -> rhs`.
+/// A rewrite rule (सूत्र): `lhs -> rhs`, optionally `lhs | guard -> rhs`.
 #[derive(Clone, Debug)]
 pub struct Rule {
     pub lhs: Term,
+    /// An optional guard: the rule fires only if this (evaluated under the
+    /// match's bindings) reduces to `सत्य`.
+    pub guard: Option<Term>,
     pub rhs: Term,
     /// Source order, used to implement paratva (latest-declared wins).
     pub order: usize,

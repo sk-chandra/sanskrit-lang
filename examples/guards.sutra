@@ -1,0 +1,24 @@
+# पालक — pattern guards: `सूत्र lhs | condition -> rhs।`. A guarded clause fires
+# only when its condition is सत्य; otherwise it falls through to an earlier rule.
+# Declare guarded special cases LAST so paratva tries them first.
+# Run: sutra run examples/guards.sutra
+
+# Fibonacci — the guard forces the argument, so numeric base cases are clean
+# (no need for an explicit यदि).
+सूत्र फिबो(?न) -> फिबो(?न - 1) + फिबो(?न - 2)।
+सूत्र फिबो(?न) | ?न < 2 -> ?न।
+
+# Classify a number by sign.
+सूत्र चिह्न(?न) -> शून्यम्।
+सूत्र चिह्न(?न) | ?न > 0 -> धनम्।
+सूत्र चिह्न(?न) | ?न < 0 -> ऋणम्।
+
+# FizzBuzz as guards (read top-to-bottom: later rules win, so most specific last).
+सूत्र फिज़(?न) -> रूप(?न)।
+सूत्र फिज़(?न) | ?न % 3 == 0 -> "Fizz"।
+सूत्र फिज़(?न) | ?न % 5 == 0 -> "Buzz"।
+सूत्र फिज़(?न) | ?न % 15 == 0 -> "FizzBuzz"।
+
+प्रयोग फिबो(15)।          # ⇒ 610
+प्रयोग चिह्न(-7)।         # ⇒ ऋणम्
+प्रयोग प्रति(फिज़, श्रेणी(1, 16))।
