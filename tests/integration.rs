@@ -261,6 +261,22 @@ fn sequence_rewriting() {
 }
 
 #[test]
+fn element_classes() {
+    let src = "गण अवर्ण := [अ, आ]।\n\
+               गण इवर्ण := [इ, ई]।\n\
+               क्रम संधि { [अवर्ण, इवर्ण] -> [ए]। }\n\
+               गण स्वर := [अ, आ, इ, ई, उ, ऊ]।\n\
+               क्रम लोप { [स्वर, ?v:स्वर] -> [?v]। }";
+    let mut prog = load_prelude().unwrap();
+    prog.extend(parser::parse_program(src).unwrap());
+    // A class matches any member (आ ∈ अवर्ण, ई ∈ इवर्ण).
+    assert_eq!(eval_in(&prog, "संधि([क, आ, ई, त])"), "[क, ए, त]");
+    // Bare class as context + bound class member reproduced in the output.
+    assert_eq!(eval_in(&prog, "लोप([क, अ, इ, त])"), "[क, इ, त]");
+    assert_eq!(eval_in(&prog, "लोप([आ, उ])"), "[उ]");
+}
+
+#[test]
 fn static_checker() {
     let src = "संज्ञा रंग := लाल | हरित | नील।\n\
                सूत्र दुगुना(?x) -> ?x + ?y।\n\

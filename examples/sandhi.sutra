@@ -1,18 +1,19 @@
-# संधि — Sanskrit vowel sandhi as a genuine sequence-rewriting system (क्रम).
-# A "word" is a list of phonemes; adjacent vowels combine wherever they meet.
-# Unlike hand-written recursion, a क्रम system applies its rules anywhere in the
-# sequence — leftmost position first, the later-declared rule winning (paratva).
-# Context is expressed by including neighbours in the pattern (L A R -> L B R).
+# संधि — Sanskrit vowel sandhi with pratyāhāra-style classes (गण) and a
+# sequence-rewriting system (क्रम). This mirrors Pāṇini's own method: name
+# classes of sounds, then write one rule per junction that quantifies over the
+# whole class instead of enumerating every phoneme.
 # Run: sutra run examples/sandhi.sutra
 
+गण अवर्ण := [अ, आ]।          # a-class  (अ / आ)
+गण इवर्ण := [इ, ई]।          # i-class
+गण उवर्ण := [उ, ऊ]।          # u-class
+
 क्रम संधि {
-  [अ, इ] -> [ए]।      # अ + इ → ए   (गुण)
-  [अ, उ] -> [ओ]।      # अ + उ → ओ
-  [अ, अ] -> [आ]।      # अ + अ → आ   (सवर्णदीर्घ)
-  [आ, इ] -> [ऐ]।      # आ + इ → ऐ   (वृद्धि)
+  [अवर्ण, अवर्ण] -> [आ]।     # सवर्णदीर्घ:  a + a → ā
+  [अवर्ण, इवर्ण] -> [ए]।     # गुण:        a + i → e
+  [अवर्ण, उवर्ण] -> [ओ]।     # गुण:        a + u → o
 }
 
-प्रयोग संधि([अ, इ])।                  # ⇒ [ए]
-प्रयोग संधि([क, अ, उ, त])।            # ⇒ [क, ओ, त]   (combines mid-word)
-प्रयोग संधि([अ, अ, इ])।               # ⇒ [ऐ]         (cascades: अ+अ→आ, then आ+इ→ऐ)
-प्रयोग संधि([र, आ, म, अ, इ, ति])।     # ⇒ [र, आ, म, ए, ति]
+प्रयोग संधि([क, आ, इ, त])।          # ⇒ [क, ए, त]        (ā + i → e, mid-word)
+प्रयोग संधि([र, आ, म, अ, उ, त])।    # ⇒ [र, आ, म, ओ, त]
+प्रयोग संधि([अ, अ, इ])।             # ⇒ [ए]              (cascades: a+a→ā, ā+i→e)

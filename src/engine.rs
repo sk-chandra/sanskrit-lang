@@ -5,7 +5,7 @@
 //! the engine knows how to β-reduce lambdas, saturate function references, and
 //! apply strict native builtins.
 
-use crate::ast::{Bindings, Program, Rule, SeqSystem, Term};
+use crate::ast::{Bindings, Class, Program, Rule, SeqSystem, Term};
 use crate::builtins;
 
 pub const DEFAULT_FUEL: u64 = 5_000_000;
@@ -13,6 +13,7 @@ pub const DEFAULT_FUEL: u64 = 5_000_000;
 pub struct Engine<'a> {
     rules: &'a [Rule],
     seq: &'a [SeqSystem],
+    classes: &'a [Class],
     pub fuel: u64,
 }
 
@@ -24,7 +25,7 @@ pub struct Outcome {
 
 impl<'a> Engine<'a> {
     pub fn new(prog: &'a Program, fuel: u64) -> Self {
-        Engine { rules: &prog.rules, seq: &prog.seq, fuel }
+        Engine { rules: &prog.rules, seq: &prog.seq, classes: &prog.classes, fuel }
     }
 
     /// Match a pattern against a concrete term (one-way, non-linear). The term
@@ -275,6 +276,48 @@ impl<'a> Engine<'a> {
         }
     }
 
+    fn class_members(&self, name: &str) -> Option<&[Term]> {
+        self.classes.iter().find(|c| c.name == name).map(|c| c.members.as_slice())
+    }
+
+    fn in_class(&self, name: &str, elem: &Term) -> bool {
+        match self.class_members(name) {
+            Some(members) => {
+                let e = elem.strip();
+                members.iter().any(|m| m == &e)
+            }
+            None => false,
+        }
+    }
+
+    /// Match one क्रम pattern element against a list element, understanding गण
+    /// classes: a bare class name matches any member; `?v:गण` (encoded as
+    /// `@गण(?v, गण)`) matches a member and binds `?v` to it.
+    fn seq_elem_match(&self, pat: &Term, elem: &Term, binds: &mut Bindings) -> bool {
+        match pat {
+            Term::Sym(tag, args) if tag == "@गण" && args.len() == 2 => {
+                if let (Term::Var(v), Term::Sym(cls, _)) = (&args[0], &args[1]) {
+                    if !self.in_class(cls, elem) {
+                        return false;
+                    }
+                    match binds.get(v) {
+                        Some(prev) => prev.strip() == elem.strip(),
+                        None => {
+                            binds.insert(v.clone(), elem.clone());
+                            true
+                        }
+                    }
+                } else {
+                    false
+                }
+            }
+            Term::Sym(name, a) if a.is_empty() && self.class_members(name).is_some() => {
+                self.in_class(name, elem)
+            }
+            _ => Self::match_term(pat, elem, binds),
+        }
+    }
+
     /// Rewrite a sequence under a क्रम system: repeatedly replace the leftmost
     /// matching subsequence (latest-declared rule winning) until none applies.
     fn rewrite_seq(&self, system: &SeqSystem, mut elems: Vec<Term>) -> Vec<Term> {
@@ -291,7 +334,7 @@ impl<'a> Engine<'a> {
                         .lhs
                         .iter()
                         .zip(&elems[i..i + k])
-                        .all(|(p, e)| Self::match_term(p, e, &mut binds));
+                        .all(|(p, e)| self.seq_elem_match(p, e, &mut binds));
                     if matched {
                         let repl: Vec<Term> =
                             rule.rhs.iter().map(|t| Self::subst(t, &binds)).collect();

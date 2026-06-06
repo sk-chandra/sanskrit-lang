@@ -69,7 +69,9 @@ rule        = ("सूत्र"|"fn")   expr [ "|" expr ] "->" expr DANDA ;  (*
 samjna      = ("संज्ञा"|"type") IDENT [ "(" params ")" ] ":=" expr {"|" expr} DANDA ;
 prayoga     = ("प्रयोग"|"eval") expr DANDA ;
 import      = ("उपयोग"|"import") STRING DANDA ;
-krama       = ("क्रम"|"seq") IDENT "{" { "[" args "]" "->" "[" args "]" DANDA } "}" ;
+gana        = ("गण"|"class") IDENT ":=" "[" args "]" DANDA ;
+krama       = ("क्रम"|"seq") IDENT "{" { "[" elems "]" "->" "[" args "]" DANDA } "}" ;
+            (* a क्रम pattern element may be a class-bound variable  ?v:गण *)
 
 expr        = "let" VAR "=" expr "in" expr
             | "if" expr "then" expr "else" expr
@@ -257,6 +259,19 @@ matching), and *context* is just neighbouring elements in the pattern
 (`[क,अ,त] -> [क,आ,त]`). The system is strict in its argument (the list is
 reduced first); a non-list argument leaves the call stuck.
 
+**Element classes (गण).** As Pāṇini named classes of sounds (pratyāhāra such as
+*अच्* = vowels), a `गण` declares a named set of atoms:
+
+```
+गण अवर्ण := [अ, आ]।   गण इवर्ण := [इ, ई]।
+क्रम संधि { [अवर्ण, इवर्ण] -> [ए]। }   # गुण: a/ā + i/ī → e
+```
+
+In a क्रम pattern, a bare class name matches **any** member (useful as context),
+while `?v:गण` matches a member **and binds** `?v` to it for reuse in the output.
+So a single rule covers an entire class instead of enumerating every phoneme,
+and rules still cascade (`[अ,अ,इ] → [आ,इ] → [ए]`).
+
 ## 10. Modules
 
 `उपयोग "path"।` (import) loads another `.sutra` file (relative to the importer)
@@ -304,10 +319,10 @@ It exits non-zero if any error is found, so it can gate CI.
   not have this issue.
 * **64-bit integers** that wrap on overflow (so `क्रमगुणित(100)` overflows);
   arbitrary precision is planned.
-* **Sequence rewriting is list-based and untyped** — क्रम systems rewrite cons-
-  lists by contiguous subsequence; there is no *pratyāhāra* (named phoneme
-  classes) or regex-style environment yet, and term-level matching remains
-  first-order.
+* **Sequence rewriting is list-based** — क्रम systems rewrite cons-lists by
+  contiguous subsequence with गण classes, but there is no regex-style
+  environment (optional/repeated elements) or śivasūtra *pratyāhāra* encoding
+  yet, and term-level matching remains first-order.
 * **Capture-avoidance** in substitution is shadow-aware but does not α-rename;
   in practice rule RHSs close their lambdas before β so this is rarely visible.
 * **Map update is O(n)** (persistent sorted vector); a HAMT is future work.

@@ -74,4 +74,8 @@ model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
   named blocks of subsequence rules over lists, applied leftmost-first with
   paratva, with variables, non-linear matching, context-by-neighbours, and
   cascading. Real vowel sandhi now expresses directly.
-* ⬜ *Pratyāhāra* (named phoneme classes) and regex-style environments for क्रम.
+* ✅ **Element classes (गण).** Pratyāhāra-style named sets of atoms; a क्रम
+  pattern element may be a bare class (matches any member) or `?v:गण` (matches
+  and binds). One rule covers a whole class — close to Pāṇini's own method.
+* ⬜ Regex-style क्रम environments (optional/repeated elements) and a true
+  śivasūtra *pratyāhāra* encoding.

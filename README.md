@@ -53,9 +53,10 @@ Options: `--fuel N`, `--ascii`, `--no-prelude`, `--check` (report saṃjñās),
 # Maps and records (a record is a map with field-name keys):
 प्रयोग {नाम: "पाणिनि", सूत्राणि: 3959}.सूत्राणि।             # ⇒ 3959
 
-# क्रम — sequence rewriting (the Pāṇinian frontier): rules over subsequences.
-क्रम संधि { [अ, इ] -> [ए]।  [अ, उ] -> [ओ]। }
-प्रयोग संधि([क, अ, इ, त])।                                  # ⇒ [क, ए, त]
+# क्रम — sequence rewriting (the Pāṇinian frontier) with गण element classes:
+गण अवर्ण := [अ, आ]।  गण इवर्ण := [इ, ई]।
+क्रम संधि { [अवर्ण, इवर्ण] -> [ए]। }                        # गुण: a/ā + i/ī → e
+प्रयोग संधि([क, आ, ई, त])।                                  # ⇒ [क, ए, त]
 
 # Pure effect-as-data I/O with do-notation: मुख्य builds an action, the runtime runs it.
 सूत्र मुख्य -> क्रिया {
@@ -69,9 +70,11 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
 
 * **Everything is rewriting.** `यदि` (if), `&&`, `::` etc. are ordinary rules /
   sugar, not built-in control flow. Reduction is outermost, so `यदि` is lazy.
-* **Sequence rewriting (क्रम).** Pāṇini also rewrote *sequences* with context;
-  a `क्रम` system rewrites subsequences of a list (leftmost-first, paratva,
-  variables, cascading) — so real sandhi expresses directly, not as recursion.
+* **Sequence rewriting (क्रम) with element classes (गण).** Pāṇini also rewrote
+  *sequences* with context and named classes of sounds; a `क्रम` system rewrites
+  subsequences of a list (leftmost-first, paratva, variables, cascading) and a
+  `गण` lets one rule range over a whole class — so real sandhi expresses
+  directly, not as recursion.
 * **Paratva conflict resolution.** When two rules match, the later one wins — a
   specific rule after a general one is an exception (apavāda).
 * **Pattern guards.** `सूत्र f(?n) | ?n < 2 -> ?n।` — a rule fires only when its
@@ -121,10 +124,10 @@ v0.4 (Phase 3 in progress) — a general-purpose practice language. Native data
 (maps & records, tuples, **arbitrary-precision integers**), higher-order
 functions, **call-by-need sharing**, ergonomic sugar (`do`-notation,
 **pattern guards**), pure effect-as-data I/O (console, files, args, env, time,
-randomness), modules, bilingual syntax, **`क्रम` sequence rewriting** (the
-Pāṇinian frontier), and a **static checker** (`sutra check`). Next (see
-[ROADMAP.md](ROADMAP.md)): module namespacing, *pratyāhāra* phoneme classes,
-and more tooling.
+randomness), modules, bilingual syntax, **`क्रम` sequence rewriting with `गण`
+element classes** (the Pāṇinian frontier), and a **static checker** (`sutra
+check`). Next (see [ROADMAP.md](ROADMAP.md)): module namespacing, regex-style
+क्रम environments, and more tooling.
 
 ## License
 

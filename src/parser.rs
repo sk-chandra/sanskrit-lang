@@ -2,7 +2,7 @@
 //! ergonomic sugar — infix operators, `let`, lambdas, `if`, list literals — all
 //! of which desugar here into the small core (`Sym` / `App` / `Lam` / literals).
 
-use crate::ast::{Program, Rule, Samjna, SeqRule, SeqSystem, Term};
+use crate::ast::{Class, Program, Rule, Samjna, SeqRule, SeqSystem, Term};
 use crate::lexer::{lex, Tok, Token};
 use crate::names::canonical;
 
@@ -125,6 +125,7 @@ impl Parser {
                 Tok::KwSutra => prog.rules.push(self.rule()?),
                 Tok::KwSamjna => prog.samjnas.push(self.samjna()?),
                 Tok::KwKrama => prog.seq.push(self.seq_system()?),
+                Tok::KwGana => prog.classes.push(self.gana()?),
                 Tok::KwAdhikara => {
                     self.bump();
                     self.ident_name()?;
@@ -201,6 +202,16 @@ impl Parser {
         Ok(Samjna { name, params, alts })
     }
 
+    /// An element class: `गण NAME := [a, b, c]।`.
+    fn gana(&mut self) -> PResult<Class> {
+        self.expect(&Tok::KwGana, "गण")?;
+        let name = self.ident_name()?;
+        self.expect(&Tok::Define, "':='")?;
+        let members = self.bracket_elems()?;
+        self.expect(&Tok::Danda, "daṇḍa after गण")?;
+        Ok(Class { name, members })
+    }
+
     /// A sequence-rewriting system: `क्रम NAME { [elems] -> [elems]। … }`.
     fn seq_system(&mut self) -> PResult<SeqSystem> {
         self.expect(&Tok::KwKrama, "क्रम")?;
@@ -209,7 +220,7 @@ impl Parser {
         let mut rules = Vec::new();
         let mut order = 0;
         while self.peek() != &Tok::RBrace {
-            let lhs = self.bracket_elems()?;
+            let lhs = self.seq_lhs_elems()?;
             self.expect(&Tok::Arrow, "'->' in क्रम rule")?;
             let rhs = self.bracket_elems()?;
             self.expect(&Tok::Danda, "daṇḍa after क्रम rule")?;
@@ -360,6 +371,33 @@ impl Parser {
         if self.peek() != &Tok::RBrack {
             loop {
                 items.push(self.expr()?);
+                if self.peek() == &Tok::Comma {
+                    self.bump();
+                } else {
+                    break;
+                }
+            }
+        }
+        self.expect(&Tok::RBrack, "']'")?;
+        Ok(items)
+    }
+
+    /// Like `bracket_elems`, but each element may be a class-constrained
+    /// variable `?v:गण`, encoded as the internal marker `@गण(?v, गण)`.
+    fn seq_lhs_elems(&mut self) -> PResult<Vec<Term>> {
+        self.expect(&Tok::LBrack, "'['")?;
+        let mut items = Vec::new();
+        if self.peek() != &Tok::RBrack {
+            loop {
+                let e = self.expr()?;
+                let e = if matches!(e, Term::Var(_)) && self.peek() == &Tok::Colon {
+                    self.bump(); // ':'
+                    let class = self.ident_name()?;
+                    Term::app("@गण", vec![e, Term::con(&class)])
+                } else {
+                    e
+                };
+                items.push(e);
                 if self.peek() == &Tok::Comma {
                     self.bump();
                 } else {

@@ -105,6 +105,14 @@ pub struct Rule {
     pub order: usize,
 }
 
+/// A named class of elements (गण) — a pratyāhāra-style set of atoms used in
+/// क्रम patterns, where a class name matches any of its members.
+#[derive(Clone, Debug)]
+pub struct Class {
+    pub name: String,
+    pub members: Vec<Term>,
+}
+
 /// One rule of a sequence-rewriting system: a contiguous subsequence `lhs`
 /// (element patterns) is replaced by `rhs` wherever it occurs in a list.
 #[derive(Clone, Debug)]
@@ -139,6 +147,8 @@ pub struct Samjna {
 pub struct Program {
     pub rules: Vec<Rule>,
     pub samjnas: Vec<Samjna>,
+    /// Named element classes (गण) for क्रम patterns.
+    pub classes: Vec<Class>,
     /// Named sequence-rewriting systems (क्रम).
     pub seq: Vec<SeqSystem>,
     /// `प्रयोग EXPR।` declarations: expressions to evaluate and print.
@@ -157,6 +167,7 @@ impl Program {
             self.rules.push(r);
         }
         self.samjnas.extend(other.samjnas);
+        self.classes.extend(other.classes);
         self.seq.extend(other.seq);
         self.prayogas.extend(other.prayogas);
         self.imports.extend(other.imports);
