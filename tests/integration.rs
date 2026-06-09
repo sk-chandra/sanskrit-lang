@@ -302,6 +302,33 @@ fn static_checker() {
 }
 
 #[test]
+fn formatter() {
+    let messy = "सूत्र   वर्ग2(?क)->?क*?क।    # comment\n\
+                 fn dbl( ?x ) ->?x   * 2 ;\n\
+                 गण स्वर:=[अ ,आ]।\n\
+                 क्रम लोप{\n[स्वर,?v:स्वर]->[?v]।\n}\n\
+                 प्रयोग {नाम:\"क\"}.नाम।\n";
+    let formatted = sutra::fmt::format_source(messy).unwrap();
+    // Canonical spacing; spelling (fn, ;) and comments preserved.
+    assert!(formatted.contains("सूत्र वर्ग2(?क) -> ?क * ?क।  # comment"));
+    assert!(formatted.contains("fn dbl(?x) -> ?x * 2;"));
+    assert!(formatted.contains("गण स्वर := [अ, आ]।"));
+    assert!(formatted.contains("  [स्वर, ?v:स्वर] -> [?v]।")); // block indented, ?v:गण tight
+    assert!(formatted.contains("प्रयोग {नाम: \"क\"}.नाम।"));
+    // Idempotent.
+    assert_eq!(sutra::fmt::format_source(&formatted).unwrap(), formatted);
+    // Token stream unchanged (the formatter's own invariant, double-checked).
+    let toks = |s: &str| -> Vec<_> {
+        sutra::lexer::lex(s).unwrap().into_iter().map(|t| t.tok).collect()
+    };
+    assert_eq!(toks(messy), toks(&formatted));
+    // Multi-line declaration bodies get a continuation indent.
+    let multi = "सूत्र मुख्य ->\nमुद्रण(\"a\") >>\nमुद्रण(\"b\")।\n";
+    let f2 = sutra::fmt::format_source(multi).unwrap();
+    assert!(f2.contains("\n  मुद्रण(\"a\") >>"));
+}
+
+#[test]
 fn parse_int_builtin() {
     assert_eq!(eval("पूर्णांक(\"42\") + 8"), "50");
     assert!(eval("पूर्णांक(\"नहीं\")").starts_with("दोष("));

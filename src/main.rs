@@ -39,6 +39,7 @@ usage:
   sutra FILE.sutra     [options]   (same as run)
   sutra eval \"EXPR\"    [options]   evaluate a single expression
   sutra check FILE.sutra           statically check FILE for likely mistakes
+  sutra fmt FILE.sutra [--write]   format FILE (print to stdout, or rewrite in place)
   sutra repl           [options]   interactive session
 
 options:
@@ -56,10 +57,12 @@ fn main() {
     }
 
     let mut opts = Options::default();
+    let mut write = false;
     let mut positional: Vec<String> = Vec::new();
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
+            "--write" | "-w" => write = true,
             "--ascii" => opts.ascii = true,
             "--no-prelude" => opts.no_prelude = true,
             "--check" => opts.check = true,
@@ -92,6 +95,7 @@ fn main() {
         "run" => ("run", &positional[1..]),
         "eval" => ("eval", &positional[1..]),
         "check" => ("check", &positional[1..]),
+        "fmt" => ("fmt", &positional[1..]),
         "repl" => ("repl", &positional[1..]),
         _ => ("run", &positional[..]),
     };
@@ -100,6 +104,7 @@ fn main() {
         "run" => cmd_run(rest, &opts),
         "eval" => cmd_eval(rest, &opts),
         "check" => cmd_check(rest, &opts),
+        "fmt" => cmd_fmt(rest, write),
         "repl" => cmd_repl(&opts),
         _ => unreachable!(),
     };
@@ -193,6 +198,24 @@ fn cmd_check(rest: &[String], opts: &Options) -> Result<(), String> {
     }
     if errors > 0 {
         exit(1);
+    }
+    Ok(())
+}
+
+fn cmd_fmt(rest: &[String], write: bool) -> Result<(), String> {
+    let path = rest.first().ok_or("fmt: expected a file path")?;
+    let src = std::fs::read_to_string(path).map_err(|e| format!("cannot read {}: {}", path, e))?;
+    let formatted = sutra::fmt::format_source(&src)?;
+    if write {
+        if formatted != src {
+            std::fs::write(path, &formatted)
+                .map_err(|e| format!("cannot write {}: {}", path, e))?;
+            println!("formatted {}", path);
+        } else {
+            println!("{} already formatted", path);
+        }
+    } else {
+        print!("{}", formatted);
     }
     Ok(())
 }

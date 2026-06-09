@@ -310,6 +310,14 @@ catches the most common mistakes without changing the language:
 
 It exits non-zero if any error is found, so it can gate CI.
 
+**Formatting** (`sutra fmt FILE [--write]`) is similarly conservative: it
+normalizes spacing and indentation only — preserving the author's line breaks,
+comments (including trailing ones), and spelling choices (`fn` vs `सूत्र`,
+`->` vs `→`, `;` vs `।`). Numeric literals are the one canonicalization
+(ASCII digits). As a hard safety property, the formatter verifies that its
+output lexes to exactly the same token stream as the input and refuses
+otherwise, so it can never change a program's meaning.
+
 ## 13. Limitations & future work
 
 * **Numeric base cases need a guard.** Because a catch-all rule `f(?n)` matches

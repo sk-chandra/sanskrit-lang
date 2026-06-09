@@ -34,6 +34,9 @@ echo "विश्व" | cargo run -q -- run examples/hello.sutra
 # Statically check a file for likely mistakes (unbound vars, arity, exhaustiveness)
 cargo run -q -- check examples/guards.sutra
 
+# Format a file (canonical spacing/indentation; preserves comments & spelling)
+cargo run -q -- fmt examples/guards.sutra --write
+
 # Interactive REPL
 cargo run -q -- repl
 ```
@@ -125,9 +128,9 @@ v0.4 (Phase 3 in progress) — a general-purpose practice language. Native data
 functions, **call-by-need sharing**, ergonomic sugar (`do`-notation,
 **pattern guards**), pure effect-as-data I/O (console, files, args, env, time,
 randomness), modules, bilingual syntax, **`क्रम` sequence rewriting with `गण`
-element classes** (the Pāṇinian frontier), and a **static checker** (`sutra
-check`). Next (see [ROADMAP.md](ROADMAP.md)): module namespacing, regex-style
-क्रम environments, and more tooling.
+element classes** (the Pāṇinian frontier), a **static checker** (`sutra
+check`), and a **formatter** (`sutra fmt`). Next (see [ROADMAP.md](ROADMAP.md)):
+module namespacing, regex-style क्रम environments, and a language server.
 
 ## License
 

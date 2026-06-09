@@ -1,5 +1,10 @@
 //! The lexer turns Sūtra source text into a token stream. Source is UTF-8;
 //! identifiers may be Devanagari or Latin, and keywords are bilingual.
+//!
+//! Two entry points: [`lex`] (for the parser — comments dropped) and
+//! [`lex_full`] (for the formatter — comments kept as tokens). Tokens carry
+//! `raw` where the same token has several spellings (keywords, `->`/`→`,
+//! `।`/`;`), so the formatter can reproduce the author's choice.
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Tok {
@@ -47,6 +52,10 @@ pub enum Tok {
     /// A binary/unary operator lexeme (handled by the Pratt parser).
     Op(String),
 
+    /// A `# …` comment (text without the leading '#'). Only produced by
+    /// [`lex_full`]; the parser never sees these.
+    Comment(String),
+
     Eof,
 }
 
@@ -54,6 +63,9 @@ pub enum Tok {
 pub struct Token {
     pub tok: Tok,
     pub line: usize,
+    /// The original spelling, kept when a token has several (keywords, arrows,
+    /// daṇḍas). `None` means the token has a single canonical spelling.
+    pub raw: Option<String>,
 }
 
 #[derive(Debug)]
@@ -108,11 +120,28 @@ const MULTI_OPS: &[&str] = &[
     ">>=", "->", "=>", ":=", "<-", "==", "!=", "<=", ">=", "&&", "||", "++", "::", "|>", ">>",
 ];
 
+/// Lex for the parser: comments are dropped.
 pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
+    let mut toks = lex_full(src)?;
+    toks.retain(|t| !matches!(t.tok, Tok::Comment(_)));
+    Ok(toks)
+}
+
+/// Lex keeping comments (for the formatter).
+pub fn lex_full(src: &str) -> Result<Vec<Token>, LexError> {
     let chars: Vec<char> = src.chars().collect();
     let mut i = 0;
     let mut line = 1;
-    let mut out = Vec::new();
+    let mut out: Vec<Token> = Vec::new();
+
+    macro_rules! push {
+        ($tok:expr) => {
+            out.push(Token { tok: $tok, line, raw: None })
+        };
+        ($tok:expr, $raw:expr) => {
+            out.push(Token { tok: $tok, line, raw: Some($raw) })
+        };
+    }
 
     while i < chars.len() {
         let c = chars[i];
@@ -127,9 +156,13 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
             continue;
         }
         if c == '#' {
+            let mut text = String::new();
+            i += 1;
             while i < chars.len() && chars[i] != '\n' {
+                text.push(chars[i]);
                 i += 1;
             }
+            push!(Tok::Comment(text.trim().to_string()));
             continue;
         }
 
@@ -145,7 +178,7 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
                     "<-" => Tok::LArrow,
                     other => Tok::Op(other.to_string()),
                 };
-                out.push(Token { tok, line });
+                push!(tok, (*op).to_string());
                 i += opn;
                 matched = true;
                 break;
@@ -174,7 +207,7 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
             _ => None,
         };
         if let Some(tok) = single {
-            out.push(Token { tok, line });
+            push!(tok, c.to_string());
             i += 1;
             continue;
         }
@@ -210,7 +243,7 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
                 s.push(d);
                 i += 1;
             }
-            out.push(Token { tok: Tok::Str(s), line });
+            push!(Tok::Str(s));
             continue;
         }
 
@@ -225,7 +258,7 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
                 name.push(chars[i]);
                 i += 1;
             }
-            out.push(Token { tok: Tok::Var(name), line });
+            push!(Tok::Var(name));
             continue;
         }
 
@@ -249,14 +282,14 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
                 let f: f64 = format!("{}.{}", int_part, frac)
                     .parse()
                     .map_err(|_| LexError { msg: "invalid float".into(), line })?;
-                out.push(Token { tok: Tok::Float(f), line });
+                push!(Tok::Float(f));
             } else if let Ok(n) = int_part.parse::<i64>() {
-                out.push(Token { tok: Tok::Int(n), line });
+                push!(Tok::Int(n));
             } else {
                 // Too large for i64: an arbitrary-precision literal.
                 let big = crate::bigint::BigInt::parse_decimal(&int_part)
                     .ok_or_else(|| LexError { msg: "invalid integer literal".into(), line })?;
-                out.push(Token { tok: Tok::Big(big), line });
+                push!(Tok::Big(big));
             }
             continue;
         }
@@ -282,15 +315,15 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
                 "tarhi" | "तर्हि" | "then" => Tok::KwThen,
                 "anyatha" | "अन्यथा" | "else" => Tok::KwElse,
                 "kriya" | "क्रिया" | "do" => Tok::KwDo,
-                _ => Tok::Ident(name),
+                _ => Tok::Ident(name.clone()),
             };
-            out.push(Token { tok, line });
+            push!(tok, name);
             continue;
         }
 
         return Err(LexError { msg: format!("unexpected character {:?}", c), line });
     }
 
-    out.push(Token { tok: Tok::Eof, line });
+    push!(Tok::Eof);
     Ok(out)
 }

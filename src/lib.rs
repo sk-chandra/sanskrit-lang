@@ -7,6 +7,7 @@ pub mod builtins;
 pub mod check;
 pub mod effect;
 pub mod engine;
+pub mod fmt;
 pub mod lexer;
 pub mod names;
 pub mod parser;
