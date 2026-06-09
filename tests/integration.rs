@@ -327,6 +327,22 @@ fn module_namespacing() {
 }
 
 #[test]
+fn open_section_carries_across_parses() {
+    // The REPL feeds declarations one input at a time; an अधिकार opened in one
+    // input must govern rules parsed in the next (parse_program_in + the
+    // trailing-module the REPL reads back).
+    let mut prog = load_prelude().unwrap();
+    assert_eq!(parser::trailing_module("अधिकार मम।"), Some("मम".to_string()));
+    assert_eq!(parser::trailing_module("सूत्र f(?x) -> ?x।"), None);
+
+    prog.extend(parser::parse_program_in("अधिकार मम।", None).unwrap());
+    // Next input: a rule, parsed as if still inside मम.
+    prog.extend(parser::parse_program_in("सूत्र घन(?x) -> ?x * ?x * ?x।", Some("मम".into())).unwrap());
+    assert_eq!(eval_in(&prog, "मम.घन(3)"), "27");
+    assert_eq!(eval_in(&prog, "घन(3)"), "27"); // unqualified still global
+}
+
+#[test]
 fn dangling_qualified_reference_is_reported() {
     let target = parser::parse_program("प्रयोग गणित.वग्र(5)।").unwrap();
     let mut ctx = load_prelude().unwrap();

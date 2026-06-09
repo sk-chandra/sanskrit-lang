@@ -723,9 +723,31 @@ impl Parser {
 }
 
 pub fn parse_program(src: &str) -> PResult<Program> {
+    parse_program_in(src, None)
+}
+
+/// Parse a program whose first declarations are governed by an already-open
+/// `अधिकार` section (used by the REPL so a section persists across inputs).
+pub fn parse_program_in(src: &str, module: Option<String>) -> PResult<Program> {
     let toks = lex(src)?;
-    let mut p = Parser { toks, pos: 0, order: 0, module: None };
+    let mut p = Parser { toks, pos: 0, order: 0, module };
     p.program()
+}
+
+/// The name of the last `अधिकार` section opened in `src`, if any.
+pub fn trailing_module(src: &str) -> Option<String> {
+    let toks = lex(src).ok()?;
+    let mut last = None;
+    let mut i = 0;
+    while i + 1 < toks.len() {
+        if toks[i].tok == Tok::KwAdhikara {
+            if let Tok::Ident(name) = &toks[i + 1].tok {
+                last = Some(canonical(name));
+            }
+        }
+        i += 1;
+    }
+    last
 }
 
 pub fn parse_expr(src: &str) -> PResult<Term> {

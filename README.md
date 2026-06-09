@@ -37,7 +37,7 @@ cargo run -q -- check examples/guards.sutra
 # Format a file (canonical spacing/indentation; preserves comments & spelling)
 cargo run -q -- fmt examples/guards.sutra --write
 
-# Interactive REPL
+# Interactive REPL — define rules/गण/क्रम on the fly, multi-line input, :help
 cargo run -q -- repl
 ```
 

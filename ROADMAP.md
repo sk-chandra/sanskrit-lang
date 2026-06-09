@@ -74,7 +74,11 @@ model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
 * ✅ **Formatter** (`sutra fmt [--write]`). Whitespace/indentation-only: keeps
   the author's line breaks, comments, and spelling (`fn` vs `सूत्र`, `;` vs `।`);
   verifies the output lexes to the identical token stream before writing.
-* ⬜ Tooling: language server, better REPL (history, completion).
+* ✅ **Interactive REPL.** Define rules / गण / क्रम / अधिकार on the fly (sections
+  persist across inputs), multi-line input with a blank-line escape, plus
+  `:load`, `:check`, `:reset`, `:type`, `:rules`, `:classes`, `:history`.
+* ⬜ Tooling: a language server; line editing / completion (needs raw-terminal
+  handling, deferred under the no-external-deps constraint).
 * ✅ **The Pāṇinian frontier (first cut).** `क्रम` sequence-rewriting systems:
   named blocks of subsequence rules over lists, applied leftmost-first with
   paratva, with variables, non-linear matching, context-by-neighbours, and

@@ -222,71 +222,274 @@ fn cmd_fmt(rest: &[String], write: bool) -> Result<(), String> {
 
 fn cmd_repl(opts: &Options) -> Result<(), String> {
     use std::io::{self, BufRead, Write};
-    let prog = base_program(opts)?;
-    let engine = Engine::new(&prog, opts.fuel);
 
-    println!("सूत्र REPL — type a term; `:help` for commands, `:quit` to exit.");
+    // Two programs: the immutable base (prelude) and the user's session
+    // definitions. The active program is base + session, rebuilt on demand.
+    let base = base_program(opts)?;
+    let mut session = Program::default();
+    let mut history: Vec<String> = Vec::new();
+    // The अधिकार currently in effect, carried across inputs so a section and
+    // its rules need not be typed in one go.
+    let mut cur_module: Option<String> = None;
+
+    println!("सूत्र REPL — type a term to evaluate, or a declaration (सूत्र/गण/क्रम/…)");
+    println!("to define one. `:help` for commands, `:quit` to exit.");
     let stdin = io::stdin();
     let mut stdout = io::stdout();
+
     loop {
-        print!("सूत्र> ");
-        stdout.flush().ok();
-        let mut line = String::new();
-        if stdin.lock().read_line(&mut line).map_err(|e| e.to_string())? == 0 {
-            println!();
-            break;
+        // Read a (possibly multi-line) input.
+        let mut buf = String::new();
+        let mut cancelled = false;
+        loop {
+            print!("{}", if buf.is_empty() { "सूत्र> " } else { "  ...> " });
+            stdout.flush().ok();
+            let mut line = String::new();
+            if stdin.lock().read_line(&mut line).map_err(|e| e.to_string())? == 0 {
+                if buf.trim().is_empty() {
+                    println!();
+                    return Ok(());
+                }
+                break;
+            }
+            // A blank line while continuing cancels the partial input.
+            if !buf.is_empty() && line.trim().is_empty() && !input_complete(&buf) {
+                cancelled = true;
+                break;
+            }
+            buf.push_str(&line);
+            if input_complete(&buf) {
+                break;
+            }
         }
-        let line = line.trim();
-        if line.is_empty() {
+        if cancelled {
+            println!("  (cancelled)");
             continue;
         }
-        if let Some(rest) = line.strip_prefix(':') {
+        let input = buf.trim().to_string();
+        if input.is_empty() {
+            continue;
+        }
+        history.push(input.clone());
+
+        if let Some(rest) = input.strip_prefix(':') {
             let mut parts = rest.splitn(2, char::is_whitespace);
             let cmd = parts.next().unwrap_or("");
             let arg = parts.next().unwrap_or("").trim();
             match cmd {
                 "quit" | "q" => break,
-                "help" | "h" => println!(
-                    ":quit  :rules  :samjnas  :type EXPR  (evaluate by typing a term)"
-                ),
-                "rules" => {
-                    for r in &prog.rules {
-                        let guard = match &r.guard {
-                            Some(g) => format!(" | {}", pretty::show(g, opts.ascii)),
-                            None => String::new(),
-                        };
-                        println!(
-                            "  {}{} -> {}",
-                            pretty::show(&r.lhs, opts.ascii),
-                            guard,
-                            pretty::show(&r.rhs, opts.ascii)
-                        );
-                    }
-                }
+                "help" | "h" => print_repl_help(),
+                "rules" => list_rules(&session, opts),
                 "samjnas" => {
-                    for s in &prog.samjnas {
+                    for s in &session.samjnas {
                         println!("  {}", s.name);
                     }
+                    if session.samjnas.is_empty() {
+                        println!("  (no session saṃjñās; the stdlib ones are still in scope)");
+                    }
                 }
-                "type" => match parser::parse_expr(arg) {
-                    Ok(t) => {
-                        let nf = engine.normalize(&t).term;
-                        let names = samjna::classify(&prog, &nf);
-                        let ty = if names.is_empty() { "(none)".into() } else { names.join(", ") };
-                        println!("  {} : {}", pretty::show(&nf, opts.ascii), ty);
+                "classes" => {
+                    for c in &session.classes {
+                        println!("  गण {}", c.name);
+                    }
+                    for s in &session.seq {
+                        println!("  क्रम {}", s.name);
+                    }
+                    if session.classes.is_empty() && session.seq.is_empty() {
+                        println!("  (no session गण/क्रम; stdlib परात्याहार classes अच्/हल्/… still in scope)");
+                    }
+                }
+                "type" => {
+                    let prog = combined(&base, &session);
+                    match parser::parse_expr(arg) {
+                        Ok(t) => {
+                            let nf = Engine::new(&prog, opts.fuel).normalize(&t).term;
+                            let names = samjna::classify(&prog, &nf);
+                            let ty = if names.is_empty() { "(none)".into() } else { names.join(", ") };
+                            println!("  {} : {}", pretty::show(&nf, opts.ascii), ty);
+                        }
+                        Err(e) => println!("  {}", e),
+                    }
+                }
+                "load" => match load_file(Path::new(arg)) {
+                    Ok(p) => {
+                        session.extend(p);
+                        println!("  loaded {} ({} rules now in session)", arg, session.rules.len());
                     }
                     Err(e) => println!("  {}", e),
                 },
+                "check" => {
+                    let prog = combined(&base, &session);
+                    let diags = sutra::check::check(&prog, &session);
+                    if diags.is_empty() {
+                        println!("  no problems found.");
+                    }
+                    for d in &diags {
+                        let tag = if d.severity == Severity::Error { "error" } else { "warning" };
+                        println!("  {}: {}", tag, d.msg);
+                    }
+                }
+                "reset" => {
+                    session = Program::default();
+                    cur_module = None;
+                    println!("  session definitions cleared.");
+                }
+                "history" => {
+                    for (i, h) in history.iter().enumerate() {
+                        println!("  {:>3}  {}", i + 1, h);
+                    }
+                }
                 other => println!("  unknown command {:?} (try :help)", other),
             }
             continue;
         }
-        match parser::parse_expr(line) {
-            Ok(t) => print_result(&prog, &t, &engine.normalize(&t), opts),
-            Err(e) => println!("  {}", e),
+
+        // A declaration (or block of them) vs. a bare expression.
+        if starts_declaration(&input) {
+            match parser::parse_program_in(&input, cur_module.clone()) {
+                Ok(mut parsed) => {
+                    // A section opened in this input stays in effect afterwards.
+                    if let Some(m) = parser::trailing_module(&input) {
+                        cur_module = Some(m);
+                    }
+                    let new_prayogas = std::mem::take(&mut parsed.prayogas);
+                    session.extend(parsed);
+                    let prog = combined(&base, &session);
+                    let engine = Engine::new(&prog, opts.fuel);
+                    for p in &new_prayogas {
+                        print_result(&prog, p, &engine.normalize(p), opts);
+                    }
+                    if new_prayogas.is_empty() {
+                        println!("  defined.");
+                    }
+                }
+                Err(e) => println!("  {}", e),
+            }
+        } else {
+            let prog = combined(&base, &session);
+            match parser::parse_expr(&input) {
+                Ok(t) => {
+                    let engine = Engine::new(&prog, opts.fuel);
+                    print_result(&prog, &t, &engine.normalize(&t), opts);
+                }
+                Err(e) => println!("  {}", e),
+            }
         }
     }
     Ok(())
+}
+
+fn combined(base: &Program, session: &Program) -> Program {
+    let mut p = base.clone();
+    p.extend(session.clone());
+    p
+}
+
+/// Does the input begin with a declaration keyword (so it should be parsed as
+/// declarations rather than an expression)?
+fn starts_declaration(input: &str) -> bool {
+    let kw = input.split_whitespace().next().unwrap_or("");
+    matches!(
+        kw,
+        "सूत्र" | "fn" | "sutra"
+            | "संज्ञा" | "type" | "samjna"
+            | "गण" | "class" | "gana"
+            | "क्रम" | "seq" | "sequence" | "krama"
+            | "शिवसूत्र" | "shivasutra" | "sivasutra" | "inventory"
+            | "अधिकार" | "section" | "adhikara"
+            | "प्रयोग" | "eval" | "prayoga"
+            | "उपयोग" | "import" | "use" | "upayoga"
+    )
+}
+
+/// Heuristic completeness for multi-line input: all brackets balanced, no
+/// unterminated string, and a declaration has reached its terminator.
+fn input_complete(buf: &str) -> bool {
+    let toks = match sutra::lexer::lex(buf) {
+        Ok(t) => t,
+        Err(_) => return false, // e.g. an unterminated string literal
+    };
+    use sutra::lexer::Tok;
+    let mut depth: i32 = 0;
+    let mut has_danda = false;
+    let mut has_close_brace = false;
+    for t in &toks {
+        match &t.tok {
+            Tok::LParen | Tok::LBrack | Tok::LBrace => depth += 1,
+            Tok::RParen | Tok::RBrack => depth -= 1,
+            Tok::RBrace => {
+                depth -= 1;
+                has_close_brace = true;
+            }
+            Tok::Danda => has_danda = true,
+            _ => {}
+        }
+    }
+    if depth > 0 {
+        return false;
+    }
+    // A trailing token that cannot end an input means more is coming, e.g.
+    // `2 +`, `f(x) ->`, `[1,`.
+    if let Some(last) = toks.iter().rev().find(|t| !matches!(t.tok, Tok::Comment(_) | Tok::Eof)) {
+        if matches!(
+            last.tok,
+            Tok::Op(_)
+                | Tok::Arrow
+                | Tok::FatArrow
+                | Tok::LArrow
+                | Tok::Define
+                | Tok::Eq
+                | Tok::Bar
+                | Tok::Comma
+                | Tok::Colon
+                | Tok::Dot
+        ) {
+            return false;
+        }
+    }
+    // A daṇḍa-terminated declaration is incomplete until its daṇḍa appears;
+    // a क्रम/शिवसूत्र block is complete once its brace closes.
+    if starts_declaration(buf.trim()) && !has_danda && !has_close_brace {
+        return false;
+    }
+    true
+}
+
+fn print_repl_help() {
+    println!("  commands:");
+    println!("    :help            this message");
+    println!("    :type EXPR       evaluate EXPR and show the saṃjñās it inhabits");
+    println!("    :rules           list session rules (your definitions)");
+    println!("    :samjnas         list saṃjñā types");
+    println!("    :classes         list गण classes and क्रम systems");
+    println!("    :load FILE       load a .sutra file into the session");
+    println!("    :check           statically check the session definitions");
+    println!("    :reset           clear session definitions");
+    println!("    :history         show input history");
+    println!("    :quit            exit");
+    println!("  otherwise: type a term to evaluate, or a declaration to define one.");
+    println!("  multi-line input continues until brackets balance and a daṇḍा (।) is typed.");
+}
+
+fn list_rules(session: &Program, opts: &Options) {
+    if session.rules.is_empty() {
+        println!("  (no session rules yet — define one, e.g. `सूत्र द्विगुण(?x) -> ?x * 2।`)");
+        return;
+    }
+    for r in &session.rules {
+        let m = r.module.as_deref().map(|m| format!("[{}] ", m)).unwrap_or_default();
+        let guard = match &r.guard {
+            Some(g) => format!(" | {}", pretty::show(g, opts.ascii)),
+            None => String::new(),
+        };
+        println!(
+            "  {}{}{} -> {}",
+            m,
+            pretty::show(&r.lhs, opts.ascii),
+            guard,
+            pretty::show(&r.rhs, opts.ascii)
+        );
+    }
 }
 
 fn print_result(prog: &Program, input: &sutra::Term, outcome: &sutra::Outcome, opts: &Options) {
