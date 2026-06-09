@@ -84,5 +84,9 @@ model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
   word-final *anta* context, e.g. visarga on a final स only) and greedy segment
   variables `?v*` / `?v:गण*` with backtracking, non-linear consistency, and
   RHS splicing (or capture-as-list via plain `?v`).
-* ⬜ A true śivasūtra *pratyāhāra* encoding (derive गण from an ordered
-  inventory, e.g. अच् = all vowels).
+* ✅ **Śivasūtra pratyāhāra encoding.** `शिवसूत्र { [sounds] -> marker। … }`
+  declares an ordered inventory; `गण X := प्रत्याहार(start, marker)।` derives a
+  class as a span, exactly as Pāṇini formed his names. The stdlib ships his
+  actual fourteen śivasūtras (अच्, हल्, इक्, यण्, … available everywhere), and
+  *iko yaṇ aci* (6.1.77) runs as written. Latest inventory shadows (paratva);
+  underivable spans are caught by `sutra check`.

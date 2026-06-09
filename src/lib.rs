@@ -27,6 +27,7 @@ pub const PRELUDE_SOURCES: &[(&str, &str)] = &[
     ("ganita", include_str!("../std/ganita.sutra")),
     ("suchi", include_str!("../std/suchi.sutra")),
     ("io", include_str!("../std/io.sutra")),
+    ("varna", include_str!("../std/varna.sutra")),
 ];
 
 /// Parse and combine all standard-library modules into one program.
@@ -68,6 +69,7 @@ fn load_file_inner(path: &Path, visited: &mut HashSet<PathBuf>) -> Result<Progra
         rules: parsed.rules,
         samjnas: parsed.samjnas,
         classes: parsed.classes,
+        siva: parsed.siva,
         seq: parsed.seq,
         prayogas: parsed.prayogas,
         imports: vec![],

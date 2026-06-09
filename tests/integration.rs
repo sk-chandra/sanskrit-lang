@@ -301,6 +301,47 @@ fn seq_anchors_and_segments() {
 }
 
 #[test]
+fn shivasutra_pratyahara() {
+    // The stdlib ships Pāṇini's śivasūtras: iko yaṇ aci (6.1.77) end-to-end.
+    let src = "सूत्र यणादेश(इ) -> य। सूत्र यणादेश(उ) -> व।\n\
+               क्रम संधि { [?i:इक्, ?a:अच्] -> [यणादेश(?i), ?a]। }";
+    let mut prog = load_prelude().unwrap();
+    prog.extend(parser::parse_program(src).unwrap());
+    assert_eq!(eval_in(&prog, "संधि([द, ध, इ, अ, त, र])"), "[द, ध, य, अ, त, र]");
+    // ऐ is a vowel (अच्) but not इक्; हल् is the consonant span.
+    let cls = "क्रम क1 { [?v:अच्] -> [स्वरः]। }\nक्रम क2 { [?v:हल्] -> [व्य]। }";
+    let mut p2 = load_prelude().unwrap();
+    p2.extend(parser::parse_program(cls).unwrap());
+    assert_eq!(eval_in(&p2, "क1([ऐ])"), "[स्वरः]");
+    assert_eq!(eval_in(&p2, "क2([ख])"), "[व्य]");
+    assert_eq!(eval_in(&p2, "क2([औ])"), "[औ]"); // a vowel is not in हल्
+
+    // A user-defined inventory and span.
+    let own = "शिवसूत्र { [क, ख] -> म्। [ग] -> न्। }\n\
+               गण कन् := प्रत्याहार(ख, न्)।\n\
+               क्रम प { [?v:कन्] -> [हित]। }";
+    let p3 = {
+        let mut p = load_prelude().unwrap();
+        p.extend(parser::parse_program(own).unwrap());
+        p
+    };
+    assert_eq!(eval_in(&p3, "प([ग])"), "[हित]");
+    assert_eq!(eval_in(&p3, "प([क])"), "[क]"); // क is before the span's start
+}
+
+#[test]
+fn underivable_pratyahara_is_reported() {
+    let src = "गण भ्रम := प्रत्याहार(क, ज़्)।";
+    let target = parser::parse_program(src).unwrap();
+    let mut ctx = load_prelude().unwrap();
+    ctx.extend(target.clone());
+    let diags = check::check(&ctx, &target);
+    assert!(diags
+        .iter()
+        .any(|d| d.severity == Severity::Error && d.msg.contains("भ्रम")));
+}
+
+#[test]
 fn static_checker() {
     let src = "संज्ञा रंग := लाल | हरित | नील।\n\
                सूत्र दुगुना(?x) -> ?x + ?y।\n\

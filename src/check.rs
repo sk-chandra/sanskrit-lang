@@ -79,6 +79,19 @@ pub fn check(context: &Program, target: &Program) -> Vec<Diagnostic> {
         check_arities(p, &ctors, &mut diags);
     }
 
+    // A derived गण must actually resolve against the inventory.
+    for c in &target.classes {
+        if let Some((start, marker)) = &c.derive {
+            if crate::engine::resolve_pratyahara(&context.siva, start, marker).is_none() {
+                diags.push(Diagnostic::error(format!(
+                    "गण `{}`: प्रत्याहार({}, {}) cannot be derived — `{}` is not in the \
+                     śivasūtra inventory or no following row has marker `{}`",
+                    c.name, start, marker, start, marker
+                )));
+            }
+        }
+    }
+
     exhaustiveness(target, context, &ctors, &mut diags);
     diags
 }

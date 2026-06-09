@@ -136,7 +136,7 @@ fn is_block_brace(toks: &[&Token], idx: usize) -> bool {
         return false;
     }
     match &toks[idx - 1].tok {
-        Tok::KwDo => true,
+        Tok::KwDo | Tok::KwSiva => true,
         Tok::Ident(_) => idx >= 2 && matches!(toks[idx - 2].tok, Tok::KwKrama),
         _ => false,
     }
@@ -314,6 +314,7 @@ fn token_text(t: &Token) -> String {
         Tok::KwImport => "उपयोग".into(),
         Tok::KwKrama => "क्रम".into(),
         Tok::KwGana => "गण".into(),
+        Tok::KwSiva => "शिवसूत्र".into(),
         Tok::KwLet => "अस्तु".into(),
         Tok::KwIn => "अतः".into(),
         Tok::KwIf => "चेत्".into(),

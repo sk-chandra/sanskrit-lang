@@ -288,6 +288,40 @@ runs of elements:
 A pattern must contain at least one concrete (non-anchor, non-star) element,
 and identity rewrites are skipped, so zero-width or no-op rules cannot loop.
 
+**Śivasūtras & pratyāhāra.** Pāṇini didn't list his classes either — he derived
+them from fourteen ordered rows of sounds, each closed by a marker consonant
+(इत्), naming a class by a start sound plus a marker. Sūtra encodes exactly
+this:
+
+```
+शिवसूत्र {
+  [अ, इ, उ] -> ण्।
+  [ऋ, ऌ] -> क्।
+  …
+}
+गण अच् := प्रत्याहार(अ, च्)।   # the span अ…औ — all vowels
+```
+
+A derived गण's members are the sounds from the start through the end of the
+first row at-or-after it whose marker matches. The **standard library declares
+Pāṇini's actual fourteen śivasūtras**, so the classic classes — `अच्` (vowels),
+`हल्` (consonants), `इक्`, `यण्`, `अण्`, `उक्`, `एच्`, `झल्` — are available in
+every program, and e.g. *iko yaṇ aci* (Aṣṭādhyāyī 6.1.77) is directly writable:
+
+```
+सूत्र यणादेश(इ) -> य।   सूत्र यणादेश(उ) -> व।   # …(sthāna correspondence)
+क्रम स्वरसंधि { [?i:इक्, ?a:अच्] -> [यणादेश(?i), ?a]। }
+प्रयोग स्वरसंधि([द, ध, इ, अ, त, र])।   # dadhi+atra ⇒ [द, ध, य, अ, त, र]
+```
+
+Each `शिवसूत्र { … }` block is a self-contained inventory; resolution tries the
+latest block first (paratva), so a program's own inventory shadows the
+stdlib's rather than extending it. An underivable pratyāhāra resolves to the
+empty class (its rules never fire) and is reported by `sutra check`. One known
+simplification: a span stops at the *first* matching marker after its start,
+so for the doubled marker ण् this yields the common readings (अण् = अ इ उ,
+यण् = य व र ल) but not Pāṇini's occasional second-ण् reading of इण्.
+
 ## 10. Modules
 
 `उपयोग "path"।` (import) loads another `.sutra` file (relative to the importer)

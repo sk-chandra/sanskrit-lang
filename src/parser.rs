@@ -2,7 +2,7 @@
 //! ergonomic sugar — infix operators, `let`, lambdas, `if`, list literals — all
 //! of which desugar here into the small core (`Sym` / `App` / `Lam` / literals).
 
-use crate::ast::{Class, Program, Rule, Samjna, SeqRule, SeqSystem, Term};
+use crate::ast::{Class, Program, Rule, Samjna, SeqRule, SeqSystem, SivaRow, Term};
 use crate::lexer::{lex, Tok, Token};
 use crate::names::canonical;
 
@@ -129,6 +129,7 @@ impl Parser {
                 Tok::KwSamjna => prog.samjnas.push(self.samjna()?),
                 Tok::KwKrama => prog.seq.push(self.seq_system()?),
                 Tok::KwGana => prog.classes.push(self.gana()?),
+                Tok::KwSiva => self.siva_block(&mut prog)?,
                 Tok::KwAdhikara => {
                     self.bump();
                     self.ident_name()?;
@@ -205,14 +206,52 @@ impl Parser {
         Ok(Samjna { name, params, alts })
     }
 
-    /// An element class: `गण NAME := [a, b, c]।`.
+    /// An element class: `गण NAME := [a, b, c]।` (literal members) or
+    /// `गण NAME := प्रत्याहार(start, marker)।` (a span over the śivasūtra
+    /// inventory, resolved when the engine is built).
     fn gana(&mut self) -> PResult<Class> {
         self.expect(&Tok::KwGana, "गण")?;
         let name = self.ident_name()?;
         self.expect(&Tok::Define, "':='")?;
-        let members = self.bracket_elems()?;
+        if self.peek() == &Tok::LBrack {
+            let members = self.bracket_elems()?;
+            self.expect(&Tok::Danda, "daṇḍa after गण")?;
+            return Ok(Class { name, members, derive: None });
+        }
+        let head = self.ident_name()?;
+        if head != "प्रत्याहार" {
+            return self.err(format!(
+                "गण expects [members] or प्रत्याहार(start, marker), found `{}`",
+                head
+            ));
+        }
+        self.expect(&Tok::LParen, "'(' after प्रत्याहार")?;
+        let start = self.ident_name()?;
+        self.expect(&Tok::Comma, "',' in प्रत्याहार")?;
+        let marker = self.ident_name()?;
+        self.expect(&Tok::RParen, "')'")?;
         self.expect(&Tok::Danda, "daṇḍa after गण")?;
-        Ok(Class { name, members })
+        Ok(Class { name, members: vec![], derive: Some((start, marker)) })
+    }
+
+    /// One śivasūtra inventory: `शिवसूत्र { [sounds] -> marker। … }`.
+    fn siva_block(&mut self, prog: &mut Program) -> PResult<()> {
+        self.expect(&Tok::KwSiva, "शिवसूत्र")?;
+        self.expect(&Tok::LBrace, "'{' after शिवसूत्र")?;
+        let mut rows = Vec::new();
+        while self.peek() != &Tok::RBrace {
+            let sounds = self.bracket_elems()?;
+            self.expect(&Tok::Arrow, "'->' before the row's marker")?;
+            let marker = self.ident_name()?;
+            self.expect(&Tok::Danda, "daṇḍa after शिवसूत्र row")?;
+            if sounds.is_empty() {
+                return self.err("a शिवसूत्र row needs at least one sound");
+            }
+            rows.push(SivaRow { sounds, marker });
+        }
+        self.expect(&Tok::RBrace, "'}'")?;
+        prog.siva.push(rows);
+        Ok(())
     }
 
     /// A sequence-rewriting system: `क्रम NAME { [elems] -> [elems]। … }`.

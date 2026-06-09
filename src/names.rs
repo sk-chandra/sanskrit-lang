@@ -74,6 +74,8 @@ const IDENT_ALIASES: &[(&str, &str)] = &[
     ("member", "सदस्य"),
     ("range", "श्रेणी"),
     ("sum", "समष्टि"),
+    // sequence rewriting
+    ("pratyahara", "प्रत्याहार"),
     // io actions
     ("pure", "शुद्ध"),
     ("return", "शुद्ध"),

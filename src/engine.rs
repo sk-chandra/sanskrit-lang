@@ -5,7 +5,7 @@
 //! the engine knows how to β-reduce lambdas, saturate function references, and
 //! apply strict native builtins.
 
-use crate::ast::{Bindings, Class, Program, Rule, SeqSystem, Term};
+use crate::ast::{Bindings, Class, Program, Rule, SeqSystem, SivaRow, Term};
 use crate::builtins;
 
 pub const DEFAULT_FUEL: u64 = 5_000_000;
@@ -13,8 +13,41 @@ pub const DEFAULT_FUEL: u64 = 5_000_000;
 pub struct Engine<'a> {
     rules: &'a [Rule],
     seq: &'a [SeqSystem],
-    classes: &'a [Class],
+    /// Classes with pratyāhāra derivations already resolved against the
+    /// program's śivasūtra inventory. An underivable class resolves to no
+    /// members (its rules simply never fire); `sutra check` reports it.
+    classes: Vec<Class>,
     pub fuel: u64,
+}
+
+/// Resolve a pratyāhāra span: the sounds from `start` through the end of the
+/// first row *at or after it* whose marker is `marker`. Inventories are tried
+/// latest-first (paratva), so a program's own शिवसूत्र block shadows the
+/// stdlib's. Returns `None` when no inventory can derive the span.
+pub fn resolve_pratyahara(
+    inventories: &[Vec<SivaRow>],
+    start: &str,
+    marker: &str,
+) -> Option<Vec<Term>> {
+    let start_t = Term::con(start);
+    for siva in inventories.iter().rev() {
+        let mut collecting = false;
+        let mut out = Vec::new();
+        for row in siva {
+            for s in &row.sounds {
+                if !collecting && *s == start_t {
+                    collecting = true;
+                }
+                if collecting {
+                    out.push(s.clone());
+                }
+            }
+            if collecting && row.marker == marker {
+                return Some(out);
+            }
+        }
+    }
+    None
 }
 
 pub struct Outcome {
@@ -25,7 +58,19 @@ pub struct Outcome {
 
 impl<'a> Engine<'a> {
     pub fn new(prog: &'a Program, fuel: u64) -> Self {
-        Engine { rules: &prog.rules, seq: &prog.seq, classes: &prog.classes, fuel }
+        let classes = prog
+            .classes
+            .iter()
+            .map(|c| match &c.derive {
+                Some((start, marker)) => Class {
+                    name: c.name.clone(),
+                    members: resolve_pratyahara(&prog.siva, start, marker).unwrap_or_default(),
+                    derive: c.derive.clone(),
+                },
+                None => c.clone(),
+            })
+            .collect();
+        Engine { rules: &prog.rules, seq: &prog.seq, classes, fuel }
     }
 
     /// Match a pattern against a concrete term (one-way, non-linear). The term
@@ -277,7 +322,9 @@ impl<'a> Engine<'a> {
     }
 
     fn class_members(&self, name: &str) -> Option<&[Term]> {
-        self.classes.iter().find(|c| c.name == name).map(|c| c.members.as_slice())
+        // Latest declaration wins (paratva), so a program can shadow a
+        // stdlib class.
+        self.classes.iter().rev().find(|c| c.name == name).map(|c| c.members.as_slice())
     }
 
     fn in_class(&self, name: &str, elem: &Term) -> bool {

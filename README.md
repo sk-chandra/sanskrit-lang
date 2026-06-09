@@ -56,10 +56,12 @@ Options: `--fuel N`, `--ascii`, `--no-prelude`, `--check` (report saṃjñās),
 # Maps and records (a record is a map with field-name keys):
 प्रयोग {नाम: "पाणिनि", सूत्राणि: 3959}.सूत्राणि।             # ⇒ 3959
 
-# क्रम — sequence rewriting (the Pāṇinian frontier) with गण element classes:
-गण अवर्ण := [अ, आ]।  गण इवर्ण := [इ, ई]।
-क्रम संधि { [अवर्ण, इवर्ण] -> [ए]। }                        # गुण: a/ā + i/ī → e
-प्रयोग संधि([क, आ, ई, त])।                                  # ⇒ [क, ए, त]
+# क्रम — sequence rewriting (the Pāṇinian frontier). The stdlib ships Pāṇini's
+# fourteen śivasūtras, so his classes (अच् = vowels, इक्, यण्, …) and even his
+# actual rule "iko yaṇ aci" (6.1.77) work as written:
+सूत्र यणादेश(इ) -> य।
+क्रम स्वरसंधि { [?i:इक्, ?a:अच्] -> [यणादेश(?i), ?a]। }
+प्रयोग स्वरसंधि([द, ध, इ, अ, त, र])।            # dadhi+atra ⇒ [द, ध, य, अ, त, र]
 
 # Pure effect-as-data I/O with do-notation: मुख्य builds an action, the runtime runs it.
 सूत्र मुख्य -> क्रिया {
@@ -79,6 +81,10 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
   `गण` lets one rule range over a whole class, anchors `^`/`$` give
   word-initial/final context, and `?v*` captures whole segments — so real
   sandhi (गुण, विसर्ग, …) expresses directly, not as recursion.
+* **Śivasūtras & pratyāhāra.** The stdlib declares Pāṇini's fourteen
+  śivasūtras; `गण X := प्रत्याहार(start, marker)।` derives a class as a span
+  over the inventory, exactly as he formed अच्, हल्, इक्, यण् — which are all
+  predefined and usable in any `क्रम` rule.
 * **Paratva conflict resolution.** When two rules match, the later one wins — a
   specific rule after a general one is an exception (apavāda).
 * **Pattern guards.** `सूत्र f(?n) | ?n < 2 -> ?n।` — a rule fires only when its
@@ -103,6 +109,7 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
 | [`examples/samvada.sutra`](examples/samvada.sutra) | do-notation dialogue (read & add numbers) |
 | [`examples/guards.sutra`](examples/guards.sutra) | pattern guards (fibonacci, sign, fizzbuzz) |
 | [`examples/sandhi.sutra`](examples/sandhi.sutra) | Sanskrit vowel sandhi as a क्रम sequence system |
+| [`examples/pratyahara.sutra`](examples/pratyahara.sutra) | śivasūtras, derived classes, iko yaṇ aci (6.1.77) |
 | [`examples/dosha.sutra`](examples/dosha.sutra)   | doṣa error-values and stuck terms |
 | [`examples/paratva.sutra`](examples/paratva.sutra) | later-rule-wins conflict resolution |
 
@@ -129,10 +136,10 @@ v0.4 (Phase 3 in progress) — a general-purpose practice language. Native data
 functions, **call-by-need sharing**, ergonomic sugar (`do`-notation,
 **pattern guards**), pure effect-as-data I/O (console, files, args, env, time,
 randomness), modules, bilingual syntax, **`क्रम` sequence rewriting with `गण`
-element classes, anchors, and segment captures** (the Pāṇinian frontier), a
-**static checker** (`sutra check`), and a **formatter** (`sutra fmt`). Next
-(see [ROADMAP.md](ROADMAP.md)): module namespacing, a śivasūtra pratyāhāra
-encoding, and a language server.
+element classes, anchors, segment captures, and a śivasūtra pratyāhāra
+encoding** (the Pāṇinian frontier — *iko yaṇ aci* runs as written), a **static
+checker** (`sutra check`), and a **formatter** (`sutra fmt`). Next (see
+[ROADMAP.md](ROADMAP.md)): module namespacing and a language server.
 
 ## License
 

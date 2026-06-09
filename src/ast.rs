@@ -105,12 +105,25 @@ pub struct Rule {
     pub order: usize,
 }
 
-/// A named class of elements (गण) — a pratyāhāra-style set of atoms used in
-/// क्रम patterns, where a class name matches any of its members.
+/// A named class of elements (गण) used in क्रम patterns, where a class name
+/// matches any of its members. Members are either listed literally or derived
+/// as a pratyāhāra span over the program's śivasūtra inventory.
 #[derive(Clone, Debug)]
 pub struct Class {
     pub name: String,
     pub members: Vec<Term>,
+    /// `गण X := प्रत्याहार(start, marker)।` — members are the sounds from
+    /// `start` up to the row ended by `marker`, resolved against the
+    /// śivasūtra inventory when the engine is built.
+    pub derive: Option<(String, String)>,
+}
+
+/// One row of the śivasūtra inventory: an ordered group of sounds closed by a
+/// marker consonant (इत्), e.g. `[अ, इ, उ] -> ण्।`.
+#[derive(Clone, Debug)]
+pub struct SivaRow {
+    pub sounds: Vec<Term>,
+    pub marker: String,
 }
 
 /// One rule of a sequence-rewriting system: a contiguous subsequence `lhs`
@@ -149,6 +162,11 @@ pub struct Program {
     pub samjnas: Vec<Samjna>,
     /// Named element classes (गण) for क्रम patterns.
     pub classes: Vec<Class>,
+    /// Śivasūtra inventories: each `शिवसूत्र { … }` block is one self-contained
+    /// inventory. Pratyāhāra resolution tries the latest block first (paratva),
+    /// so a program's own inventory shadows the stdlib's rather than extending
+    /// it.
+    pub siva: Vec<Vec<SivaRow>>,
     /// Named sequence-rewriting systems (क्रम).
     pub seq: Vec<SeqSystem>,
     /// `प्रयोग EXPR।` declarations: expressions to evaluate and print.
@@ -168,6 +186,7 @@ impl Program {
         }
         self.samjnas.extend(other.samjnas);
         self.classes.extend(other.classes);
+        self.siva.extend(other.siva);
         self.seq.extend(other.seq);
         self.prayogas.extend(other.prayogas);
         self.imports.extend(other.imports);

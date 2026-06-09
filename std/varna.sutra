@@ -1,0 +1,34 @@
+# वर्ण — the sound inventory: Pāṇini's fourteen śivasūtras (māheśvarāṇi
+# sūtrāṇi). Each row lists sounds in order and ends with its marker consonant
+# (इत्). A pratyāhāra names the span from a sound to a marker — गण X :=
+# प्रत्याहार(start, marker) — exactly as Pāṇini formed अच्, हल्, इक्, …
+
+अधिकार वर्ण।
+
+शिवसूत्र {
+  [अ, इ, उ] -> ण्।
+  [ऋ, ऌ] -> क्।
+  [ए, ओ] -> ङ्।
+  [ऐ, औ] -> च्।
+  [ह, य, व, र] -> ट्।
+  [ल] -> ण्।
+  [ञ, म, ङ, ण, न] -> म्।
+  [झ, भ] -> ञ्।
+  [घ, ढ, ध] -> ष्।
+  [ज, ब, ग, ड, द] -> श्।
+  [ख, फ, छ, ठ, थ, च, ट, त] -> व्।
+  [क, प] -> य्।
+  [श, ष, स] -> र्।
+  [ह] -> ल्।
+}
+
+# The classic pratyāhāras. (A span runs to the FIRST matching marker after its
+# start, so यण् = य व र ल uses the second ण्, and अण् = अ इ उ the first.)
+गण अच् := प्रत्याहार(अ, च्)।  # all vowels
+गण हल् := प्रत्याहार(ह, ल्)।  # all consonants
+गण अण् := प्रत्याहार(अ, ण्)।  # अ इ उ
+गण इक् := प्रत्याहार(इ, क्)।  # इ उ ऋ ऌ  (the vowels that take यण्)
+गण उक् := प्रत्याहार(उ, क्)।  # उ ऋ ऌ
+गण एच् := प्रत्याहार(ए, च्)।  # ए ओ ऐ औ  (the diphthongs)
+गण यण् := प्रत्याहार(य, ण्)।  # य व र ल  (the semivowels)
+गण झल् := प्रत्याहार(झ, ल्)।  # the obstruents
