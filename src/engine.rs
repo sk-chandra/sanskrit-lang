@@ -17,6 +17,11 @@ pub struct Engine<'a> {
     /// program's śivasūtra inventory. An underivable class resolves to no
     /// members (its rules simply never fire); `sutra check` reports it.
     classes: Vec<Class>,
+    /// The head symbol of each rule's LHS (parallel to `rules`), used as a
+    /// cheap pre-filter before full matching.
+    heads: Vec<String>,
+    /// All declared अधिकार (module) names, for resolving `म.f` dot access.
+    modules: std::collections::HashSet<String>,
     pub fuel: u64,
 }
 
@@ -70,7 +75,16 @@ impl<'a> Engine<'a> {
                 None => c.clone(),
             })
             .collect();
-        Engine { rules: &prog.rules, seq: &prog.seq, classes, fuel }
+        let heads = prog
+            .rules
+            .iter()
+            .map(|r| match &r.lhs {
+                Term::Sym(n, _) => n.clone(),
+                _ => String::new(),
+            })
+            .collect();
+        let modules = prog.rules.iter().filter_map(|r| r.module.clone()).collect();
+        Engine { rules: &prog.rules, seq: &prog.seq, classes, heads, modules, fuel }
     }
 
     /// Match a pattern against a concrete term (one-way, non-linear). The term
@@ -211,10 +225,34 @@ impl<'a> Engine<'a> {
     }
 
     /// Try a root user-rule rewrite (paratva: latest-declared match wins).
+    /// An unqualified head sees every rule; a qualified head `म.f` dispatches
+    /// only to the rules declared under अधिकार म.
     fn try_user_rules(&self, t: &Term) -> Option<Term> {
-        for rule in self.rules.iter().rev() {
+        let Term::Sym(head, args) = t else { return None };
+        let (want_mod, base) = match head.split_once('.') {
+            Some((m, f)) => (Some(m), f),
+            None => (None, head.as_str()),
+        };
+        // For a qualified call, match rules against the unqualified redex.
+        let base_redex;
+        let redex: &Term = if want_mod.is_some() {
+            base_redex = Term::Sym(base.to_string(), args.clone());
+            &base_redex
+        } else {
+            t
+        };
+        for (idx, rule) in self.rules.iter().enumerate().rev() {
+            // Cheap head pre-filter (empty = unusual non-symbol LHS: always try).
+            if !self.heads[idx].is_empty() && self.heads[idx] != base {
+                continue;
+            }
+            if let Some(m) = want_mod {
+                if rule.module.as_deref() != Some(m) {
+                    continue;
+                }
+            }
             let mut binds = Bindings::new();
-            if Self::match_term(&rule.lhs, t, &mut binds) {
+            if Self::match_term(&rule.lhs, redex, &mut binds) {
                 // A guard must reduce to सत्य for the rule to fire; otherwise we
                 // fall through to earlier-declared rules.
                 if let Some(guard) = &rule.guard {
@@ -277,7 +315,22 @@ impl<'a> Engine<'a> {
                     {
                         return Some(r);
                     }
-                    return builtins::apply(name, args);
+                    let applied = builtins::apply(name, args);
+                    // `म.f` parses as record access प्राप्ति(म, "f"); when the
+                    // object is a bare atom naming a declared अधिकार (and not a
+                    // map), it is a qualified call into that module instead.
+                    if applied.is_none() && name == "प्राप्ति" && args.len() >= 2 {
+                        if let (Term::Sym(m, ma), Term::Str(f)) =
+                            (&args[0].peel(), &args[1].peel())
+                        {
+                            if ma.is_empty() && self.modules.contains(m) {
+                                let qualified =
+                                    format!("{}.{}", m, crate::names::canonical(f));
+                                return Some(Term::Sym(qualified, args[2..].to_vec()));
+                            }
+                        }
+                    }
+                    return applied;
                 }
                 // Non-builtin symbol: outermost — descend into arguments.
                 let n = name.clone();

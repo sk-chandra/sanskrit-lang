@@ -322,12 +322,29 @@ simplification: a span stops at the *first* matching marker after its start,
 so for the doubled marker ण् this yields the common readings (अण् = अ इ उ,
 यण् = य व र ल) but not Pāṇini's occasional second-ण् reading of इण्.
 
-## 10. Modules
+## 10. Modules & namespacing
 
 `उपयोग "path"।` (import) loads another `.sutra` file (relative to the importer)
 and merges its declarations *before* the importing file's, so a file can
-override what it imports (paratva). Cycles are broken automatically. Namespacing
-remains flat for now (see roadmap).
+override what it imports (paratva). Cycles are broken automatically.
+
+**अधिकार as namespace.** An `अधिकार नाम।` heading tags the rules declared
+after it as belonging to module `नाम` — Pāṇini's adhikāra, a governing heading
+over rules. The model is *qualification narrows, unqualified stays global*:
+
+* an **unqualified** call `f(x)` sees every rule everywhere, resolved by
+  paratva exactly as before — the open rule space is unchanged;
+* a **qualified** call `म.f(x)` dispatches *only* to the rules declared under
+  अधिकार म — disambiguation when two modules define the same name. The
+  stdlib's sections work this way too: `गणित.वर्ग(7)`.
+
+Qualified syntax reuses dot access with no ambiguity: `म.f(x)` parses as record
+access `प्राप्ति(म, "f", x)`; at reduction time, if the object is a bare atom
+naming a declared module (and not a map), it resolves to the qualified call.
+Records are untouched — `{क: 1}.क` and dot access on a map-returning function
+still read fields. An unknown module stays stuck (honest failure), and
+`sutra check` warns when `म.f` names no rule in म. संज्ञा, गण and क्रम names
+remain global.
 
 ---
 

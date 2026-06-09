@@ -28,6 +28,8 @@ struct Parser {
     toks: Vec<Token>,
     pos: usize,
     order: usize,
+    /// The current अधिकार (section); rules declared under it are tagged.
+    module: Option<String>,
 }
 
 type PResult<T> = Result<T, ParseError>;
@@ -132,8 +134,9 @@ impl Parser {
                 Tok::KwSiva => self.siva_block(&mut prog)?,
                 Tok::KwAdhikara => {
                     self.bump();
-                    self.ident_name()?;
+                    let name = self.ident_name()?;
                     self.expect(&Tok::Danda, "daṇḍa after section name")?;
+                    self.module = Some(name);
                 }
                 Tok::KwPrayoga => {
                     self.bump();
@@ -172,7 +175,7 @@ impl Parser {
         self.expect(&Tok::Danda, "daṇḍa after rule")?;
         let order = self.order;
         self.order += 1;
-        Ok(Rule { lhs, guard, rhs, order })
+        Ok(Rule { lhs, guard, rhs, order, module: self.module.clone() })
     }
 
     fn samjna(&mut self) -> PResult<Samjna> {
@@ -721,13 +724,13 @@ impl Parser {
 
 pub fn parse_program(src: &str) -> PResult<Program> {
     let toks = lex(src)?;
-    let mut p = Parser { toks, pos: 0, order: 0 };
+    let mut p = Parser { toks, pos: 0, order: 0, module: None };
     p.program()
 }
 
 pub fn parse_expr(src: &str) -> PResult<Term> {
     let toks = lex(src)?;
-    let mut p = Parser { toks, pos: 0, order: 0 };
+    let mut p = Parser { toks, pos: 0, order: 0, module: None };
     let t = p.expr()?;
     if p.peek() == &Tok::Danda {
         p.bump();

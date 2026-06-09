@@ -1,0 +1,26 @@
+# अधिकार — sections as namespaces. A rule declared under an अधिकार heading
+# belongs to that module: unqualified calls see every rule (global paratva, as
+# always), while a qualified call म.f(…) dispatches only into module म.
+# Record dot-access is unaffected: {क: 1}.क still reads the field.
+# Run: sutra run examples/adhikara.sutra
+
+अधिकार ज्यामिति।
+सूत्र क्षेत्रफल(वृत्त(?त्र)) -> 3.14159 * ?त्र * ?त्र।
+सूत्र क्षेत्रफल(आयत(?दी, ?वि)) -> ?दी * ?वि।
+
+अधिकार भूगोल।
+सूत्र क्षेत्रफल(?देश) -> अज्ञातम्।
+सूत्र क्षेत्रफल(भारत) -> 3287263।
+
+# Unqualified: paratva across all modules — भूगोल's rules are later, so they
+# win where both match.
+प्रयोग क्षेत्रफल(भारत)।  # ⇒ 3287263
+प्रयोग क्षेत्रफल(आयत(3, 4))।  # ⇒ अज्ञातम्  (भूगोल's catch-all shadows!)
+
+# Qualified: dispatch into the module you mean.
+प्रयोग ज्यामिति.क्षेत्रफल(आयत(3, 4))।  # ⇒ 12
+प्रयोग ज्यामिति.क्षेत्रफल(वृत्त(1))।  # ⇒ 3.14159
+प्रयोग भूगोल.क्षेत्रफल(भारत)।  # ⇒ 3287263
+
+# The stdlib's sections are modules too.
+प्रयोग गणित.वर्ग(9)।  # ⇒ 81

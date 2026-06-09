@@ -66,8 +66,10 @@ model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
   सत्य, falling through otherwise. Makes numeric base cases clean.
 * ✅ **Static checker** (`sutra check`). Unbound variables (error), constructor
   arity (warning), and non-exhaustive single-argument matches (warning).
-* ⬜ Real module namespacing/scoping for `अधिकार` (needs a qualified-reference
-  syntax that doesn't collide with record dot-access).
+* ✅ **Module namespacing for `अधिकार`.** Qualification narrows, unqualified
+  stays global: `f(x)` sees all rules (paratva, unchanged); `म.f(x)` dispatches
+  only into module म. Reuses dot syntax — resolved at reduction time, so record
+  access is untouched. `sutra check` warns on dangling `म.f`.
 * ⬜ Optional static *type* checking over saṃjñā (beyond the current linter).
 * ✅ **Formatter** (`sutra fmt [--write]`). Whitespace/indentation-only: keeps
   the author's line breaks, comments, and spelling (`fn` vs `सूत्र`, `;` vs `।`);

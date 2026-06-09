@@ -79,6 +79,37 @@ pub fn check(context: &Program, target: &Program) -> Vec<Diagnostic> {
         check_arities(p, &ctors, &mut diags);
     }
 
+    // Qualified references `म.f` must point at a rule in that अधिकार.
+    let modules: HashSet<String> = context.rules.iter().filter_map(|r| r.module.clone()).collect();
+    let defined: HashSet<(String, String)> = context
+        .rules
+        .iter()
+        .filter_map(|r| match (&r.module, &r.lhs) {
+            (Some(m), Term::Sym(h, _)) => Some((m.clone(), h.clone())),
+            _ => None,
+        })
+        .collect();
+    let mut refs: Vec<(String, String)> = Vec::new();
+    for rule in &target.rules {
+        if let Some(g) = &rule.guard {
+            qualified_refs(g, &modules, &mut refs);
+        }
+        qualified_refs(&rule.rhs, &modules, &mut refs);
+    }
+    for p in &target.prayogas {
+        qualified_refs(p, &modules, &mut refs);
+    }
+    refs.sort();
+    refs.dedup();
+    for (m, f) in refs {
+        if !defined.contains(&(m.clone(), f.clone())) {
+            diags.push(Diagnostic::warning(format!(
+                "qualified reference `{}.{}`: अधिकार {} has no rule `{}`",
+                m, f, m, f
+            )));
+        }
+    }
+
     // A derived गण must actually resolve against the inventory.
     for c in &target.classes {
         if let Some((start, marker)) = &c.derive {
@@ -94,6 +125,32 @@ pub fn check(context: &Program, target: &Program) -> Vec<Diagnostic> {
 
     exhaustiveness(target, context, &ctors, &mut diags);
     diags
+}
+
+/// Collect dot-access forms `प्राप्ति(म, "f", …)` whose object names a module.
+fn qualified_refs(t: &Term, modules: &HashSet<String>, out: &mut Vec<(String, String)>) {
+    if let Term::Sym(name, args) = t {
+        if name == "प्राप्ति" && args.len() >= 2 {
+            if let (Term::Sym(m, ma), Term::Str(f)) = (&args[0], &args[1]) {
+                if ma.is_empty() && modules.contains(m) {
+                    out.push((m.clone(), crate::names::canonical(f)));
+                }
+            }
+        }
+    }
+    match t {
+        Term::Sym(_, args) => args.iter().for_each(|a| qualified_refs(a, modules, out)),
+        Term::App(f, args) => {
+            qualified_refs(f, modules, out);
+            args.iter().for_each(|a| qualified_refs(a, modules, out));
+        }
+        Term::Lam(_, body) => qualified_refs(body, modules, out),
+        Term::Map(entries) => entries.iter().for_each(|(k, v)| {
+            qualified_refs(k, modules, out);
+            qualified_refs(v, modules, out);
+        }),
+        _ => {}
+    }
 }
 
 fn rule_head(lhs: &Term) -> String {

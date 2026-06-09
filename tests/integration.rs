@@ -301,6 +301,48 @@ fn seq_anchors_and_segments() {
 }
 
 #[test]
+fn module_namespacing() {
+    // Qualified access into the stdlib's अधिकार sections.
+    assert_eq!(eval("गणित.वर्ग(7)"), "49");
+    assert_eq!(eval("सूची.दीर्घ([1, 2, 3])"), "3");
+
+    // Two modules defining the same name: unqualified follows paratva
+    // (latest wins); qualified dispatches into a specific module.
+    let src = "अधिकार लौकिक।\nसूत्र मान(?x) -> ?x * 2।\n\
+               अधिकार वैदिक।\nसूत्र मान(?x) -> ?x * 3।";
+    let mut prog = load_prelude().unwrap();
+    prog.extend(parser::parse_program(src).unwrap());
+    assert_eq!(eval_in(&prog, "मान(10)"), "30");
+    assert_eq!(eval_in(&prog, "लौकिक.मान(10)"), "20");
+    assert_eq!(eval_in(&prog, "वैदिक.मान(10)"), "30");
+
+    // Record dot-access is untouched, including on a function's result.
+    let rec = "सूत्र विन्यास -> {द्वार: 8080}।";
+    let mut p2 = load_prelude().unwrap();
+    p2.extend(parser::parse_program(rec).unwrap());
+    assert_eq!(eval_in(&p2, "विन्यास.द्वार"), "8080");
+
+    // An unknown module stays stuck (honest failure).
+    assert_eq!(eval_in(&prog, "अज्ञात.मान(10)"), "अज्ञात.मान(10)");
+}
+
+#[test]
+fn dangling_qualified_reference_is_reported() {
+    let target = parser::parse_program("प्रयोग गणित.वग्र(5)।").unwrap();
+    let mut ctx = load_prelude().unwrap();
+    ctx.extend(target.clone());
+    let diags = check::check(&ctx, &target);
+    assert!(diags
+        .iter()
+        .any(|d| d.severity == Severity::Warning && d.msg.contains("वग्र")));
+    // A correct qualified reference is clean.
+    let ok = parser::parse_program("प्रयोग गणित.वर्ग(5)।").unwrap();
+    let mut ctx2 = load_prelude().unwrap();
+    ctx2.extend(ok.clone());
+    assert!(check::check(&ctx2, &ok).is_empty());
+}
+
+#[test]
 fn shivasutra_pratyahara() {
     // The stdlib ships Pāṇini's śivasūtras: iko yaṇ aci (6.1.77) end-to-end.
     let src = "सूत्र यणादेश(इ) -> य। सूत्र यणादेश(उ) -> व।\n\

@@ -103,6 +103,10 @@ pub struct Rule {
     pub rhs: Term,
     /// Source order, used to implement paratva (latest-declared wins).
     pub order: usize,
+    /// The अधिकार (section) the rule was declared under, if any. Unqualified
+    /// calls see all rules; a qualified call `म.f(…)` dispatches only to the
+    /// rules of module `म`.
+    pub module: Option<String>,
 }
 
 /// A named class of elements (गण) used in क्रम patterns, where a class name

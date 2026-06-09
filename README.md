@@ -112,6 +112,7 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
 | [`examples/pratyahara.sutra`](examples/pratyahara.sutra) | śivasūtras, derived classes, iko yaṇ aci (6.1.77) |
 | [`examples/dosha.sutra`](examples/dosha.sutra)   | doṣa error-values and stuck terms |
 | [`examples/paratva.sutra`](examples/paratva.sutra) | later-rule-wins conflict resolution |
+| [`examples/adhikara.sutra`](examples/adhikara.sutra) | sections as namespaces: `म.f(…)` qualified dispatch |
 
 ## Project layout
 
@@ -137,9 +138,10 @@ functions, **call-by-need sharing**, ergonomic sugar (`do`-notation,
 **pattern guards**), pure effect-as-data I/O (console, files, args, env, time,
 randomness), modules, bilingual syntax, **`क्रम` sequence rewriting with `गण`
 element classes, anchors, segment captures, and a śivasūtra pratyāhāra
-encoding** (the Pāṇinian frontier — *iko yaṇ aci* runs as written), a **static
-checker** (`sutra check`), and a **formatter** (`sutra fmt`). Next (see
-[ROADMAP.md](ROADMAP.md)): module namespacing and a language server.
+encoding** (the Pāṇinian frontier — *iko yaṇ aci* runs as written), **module
+namespacing** (`अधिकार` sections; `गणित.वर्ग(7)`), a **static checker**
+(`sutra check`), and a **formatter** (`sutra fmt`). Next (see
+[ROADMAP.md](ROADMAP.md)): a language server and a richer REPL.
 
 ## License
 

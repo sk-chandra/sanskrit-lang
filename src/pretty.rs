@@ -69,6 +69,20 @@ pub fn show(term: &Term, ascii: bool) -> String {
                 let inner: Vec<String> = items.iter().map(|x| show(x, ascii)).collect();
                 return format!("[{}]", inner.join(", "));
             }
+            // Dot-access sugar: प्राप्ति(obj, "f", rest…) ⇒ obj.f(rest…).
+            if name == "प्राप्ति" && args.len() >= 2 {
+                if let Term::Str(f) = &args[1] {
+                    if is_field_name(f) {
+                        let obj = show(&args[0], ascii);
+                        if args.len() == 2 {
+                            return format!("{}.{}", obj, f);
+                        }
+                        let rest: Vec<String> =
+                            args[2..].iter().map(|x| show(x, ascii)).collect();
+                        return format!("{}.{}({})", obj, f, rest.join(", "));
+                    }
+                }
+            }
             // Tuple sugar.
             if name == "रचना" && args.len() >= 2 {
                 let inner: Vec<String> = args.iter().map(|x| show(x, ascii)).collect();
@@ -86,6 +100,18 @@ pub fn show(term: &Term, ascii: bool) -> String {
             }
         }
     }
+}
+
+/// Would `f` lex as a plain identifier (so `obj.f` round-trips)?
+fn is_field_name(f: &str) -> bool {
+    let mut chars = f.chars();
+    match chars.next() {
+        Some(c) if c == '_' || c.is_alphabetic() => {}
+        _ => return false,
+    }
+    f.chars().all(|c| {
+        c == '_' || c.is_alphanumeric() || ('\u{0900}'..='\u{097F}').contains(&c)
+    })
 }
 
 fn is_operator(name: &str) -> bool {
