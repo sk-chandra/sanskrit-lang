@@ -318,27 +318,106 @@ impl<'a> Engine<'a> {
         }
     }
 
+    /// Match a क्रम pattern against `elems` starting at absolute position
+    /// `pos`, returning the end position on success. Handles anchors (`@आदि`
+    /// at position 0, `@अन्त` at the end) and segment variables (`@तारा`,
+    /// shortest-first with backtracking and non-linear consistency).
+    fn seq_match_at(
+        &self,
+        pats: &[Term],
+        elems: &[Term],
+        pos: usize,
+        binds: &mut Bindings,
+    ) -> Option<usize> {
+        let Some((first, rest)) = pats.split_first() else {
+            return Some(pos);
+        };
+        match first {
+            Term::Sym(n, a) if n == "@आदि" && a.is_empty() => {
+                (pos == 0).then(|| self.seq_match_at(rest, elems, pos, binds)).flatten()
+            }
+            Term::Sym(n, a) if n == "@अन्त" && a.is_empty() => {
+                (pos == elems.len()).then(|| self.seq_match_at(rest, elems, pos, binds)).flatten()
+            }
+            Term::Sym(n, args) if n == "@तारा" && !args.is_empty() => {
+                let Term::Var(v) = &args[0] else { return None };
+                let class = match args.get(1) {
+                    Some(Term::Sym(c, _)) => Some(c.as_str()),
+                    _ => None,
+                };
+                // A class-constrained segment can't extend past a non-member.
+                let mut max_k = elems.len() - pos;
+                if let Some(cls) = class {
+                    max_k = elems[pos..]
+                        .iter()
+                        .take_while(|e| self.in_class(cls, e))
+                        .count();
+                }
+                // Greedy: longest segment first, backtracking shorter.
+                for k in (0..=max_k).rev() {
+                    let segment = make_list(elems[pos..pos + k].to_vec());
+                    let mut trial = binds.clone();
+                    if let Some(prev) = trial.get(v) {
+                        if prev.strip() != segment.strip() {
+                            continue; // non-linear reuse must match the same segment
+                        }
+                    } else {
+                        trial.insert(v.clone(), segment);
+                    }
+                    if let Some(end) = self.seq_match_at(rest, elems, pos + k, &mut trial) {
+                        *binds = trial;
+                        return Some(end);
+                    }
+                }
+                None
+            }
+            pat => {
+                if pos < elems.len() && self.seq_elem_match(pat, &elems[pos], binds) {
+                    self.seq_match_at(rest, elems, pos + 1, binds)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    /// Build the replacement for a matched क्रम rule: `@तारा(?v)` splices the
+    /// captured segment's elements; everything else substitutes normally.
+    fn expand_seq_rhs(rhs: &[Term], binds: &Bindings) -> Vec<Term> {
+        let mut out = Vec::new();
+        for t in rhs {
+            if let Term::Sym(n, args) = t {
+                if n == "@तारा" && args.len() == 1 {
+                    if let Term::Var(v) = &args[0] {
+                        if let Some(items) = binds.get(v).and_then(list_items) {
+                            out.extend(items);
+                            continue;
+                        }
+                    }
+                }
+            }
+            out.push(Self::subst(t, binds));
+        }
+        out
+    }
+
     /// Rewrite a sequence under a क्रम system: repeatedly replace the leftmost
     /// matching subsequence (latest-declared rule winning) until none applies.
     fn rewrite_seq(&self, system: &SeqSystem, mut elems: Vec<Term>) -> Vec<Term> {
         let mut budget = self.fuel;
         'scan: loop {
-            for i in 0..elems.len() {
+            for i in 0..=elems.len() {
                 for rule in system.rules.iter().rev() {
-                    let k = rule.lhs.len();
-                    if k == 0 || i + k > elems.len() {
-                        continue;
-                    }
                     let mut binds = Bindings::new();
-                    let matched = rule
-                        .lhs
-                        .iter()
-                        .zip(&elems[i..i + k])
-                        .all(|(p, e)| self.seq_elem_match(p, e, &mut binds));
-                    if matched {
-                        let repl: Vec<Term> =
-                            rule.rhs.iter().map(|t| Self::subst(t, &binds)).collect();
-                        elems.splice(i..i + k, repl);
+                    if let Some(end) = self.seq_match_at(&rule.lhs, &elems, i, &mut binds) {
+                        if end == i {
+                            continue; // zero-width: never rewrite on nothing
+                        }
+                        let repl = Self::expand_seq_rhs(&rule.rhs, &binds);
+                        if repl == elems[i..end] {
+                            continue; // identity rewrite: no progress, skip
+                        }
+                        elems.splice(i..end, repl);
                         if budget == 0 {
                             return elems;
                         }

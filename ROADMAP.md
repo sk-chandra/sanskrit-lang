@@ -80,5 +80,9 @@ model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
 * ✅ **Element classes (गण).** Pratyāhāra-style named sets of atoms; a क्रम
   pattern element may be a bare class (matches any member) or `?v:गण` (matches
   and binds). One rule covers a whole class — close to Pāṇini's own method.
-* ⬜ Regex-style क्रम environments (optional/repeated elements) and a true
-  śivasūtra *pratyāhāra* encoding.
+* ✅ **Regex-style क्रम environments.** Anchors `^`/`$` (word-initial *ādi* /
+  word-final *anta* context, e.g. visarga on a final स only) and greedy segment
+  variables `?v*` / `?v:गण*` with backtracking, non-linear consistency, and
+  RHS splicing (or capture-as-list via plain `?v`).
+* ⬜ A true śivasūtra *pratyāhāra* encoding (derive गण from an ordered
+  inventory, e.g. अच् = all vowels).

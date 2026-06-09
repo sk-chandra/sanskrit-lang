@@ -70,8 +70,9 @@ samjna      = ("संज्ञा"|"type") IDENT [ "(" params ")" ] ":=" expr {
 prayoga     = ("प्रयोग"|"eval") expr DANDA ;
 import      = ("उपयोग"|"import") STRING DANDA ;
 gana        = ("गण"|"class") IDENT ":=" "[" args "]" DANDA ;
-krama       = ("क्रम"|"seq") IDENT "{" { "[" elems "]" "->" "[" args "]" DANDA } "}" ;
-            (* a क्रम pattern element may be a class-bound variable  ?v:गण *)
+krama       = ("क्रम"|"seq") IDENT "{" { "[" elems "]" "->" "[" elems "]" DANDA } "}" ;
+            (* pattern elements: atom | गण-name | ?v | ?v:गण | ?v* | ?v:गण*
+               | "^" (first only) | "$" (last only); rhs may splice ?v* *)
 
 expr        = "let" VAR "=" expr "in" expr
             | "if" expr "then" expr "else" expr
@@ -271,6 +272,21 @@ In a क्रम pattern, a bare class name matches **any** member (useful as c
 while `?v:गण` matches a member **and binds** `?v` to it for reuse in the output.
 So a single rule covers an entire class instead of enumerating every phoneme,
 and rules still cascade (`[अ,अ,इ] → [आ,इ] → [ए]`).
+
+**Anchors and segments.** Patterns may also be position-sensitive and capture
+runs of elements:
+
+* `^` (first element of the pattern only) anchors the match to the sequence's
+  **beginning** (*ādi*); `$` (last only) to its **end** (*anta*) — so
+  `[स, $] -> [ः]` is visarga sandhi on a *final* स only.
+* `?v*` matches **zero or more** elements (greedy, with backtracking and
+  non-linear consistency); `?v:गण*` restricts the run to class members. In the
+  output, `?v*` splices the captured segment back in, while a plain `?v` uses
+  it as a single list value — e.g. `[^, ?a*, मध्य, ?b*, $] -> [रचना(?a, ?b)]`
+  splits a sequence into a pair of lists.
+
+A pattern must contain at least one concrete (non-anchor, non-star) element,
+and identity rewrites are skipped, so zero-width or no-op rules cannot loop.
 
 ## 10. Modules
 

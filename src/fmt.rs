@@ -85,9 +85,10 @@ fn render(toks: &[Token]) -> String {
             if k > 0 {
                 let prev = &line[k - 1].tok;
                 let prev2 = if k >= 2 { Some(&line[k - 2].tok) } else { None };
+                let next = toks.get(idx + 1).map(|n| &n.tok);
                 if let Tok::Comment(_) = t.tok {
                     out.push_str("  "); // trailing comment: two spaces
-                } else if needs_space(prev, prev2, &t.tok, unary[idx - 1], &brace_blocks) {
+                } else if needs_space(prev, prev2, &t.tok, next, unary[idx - 1], &brace_blocks) {
                     out.push(' ');
                 }
             }
@@ -211,6 +212,7 @@ fn needs_space(
     prev: &Tok,
     prev2: Option<&Tok>,
     cur: &Tok,
+    next: Option<&Tok>,
     prev_is_unary: bool,
     brace_blocks: &[bool],
 ) -> bool {
@@ -219,6 +221,14 @@ fn needs_space(
         Tok::Comma | Tok::Danda | Tok::RParen | Tok::RBrack | Tok::Colon | Tok::Dot => return false,
         Tok::RBrace => return brace_blocks.last().copied().unwrap_or(false),
         _ => {}
+    }
+    // A segment star `?v*` (or `?v:गण*`) hugs the variable: `*` is a star, not
+    // multiplication, exactly when a list separator/closer follows.
+    if matches!(cur, Tok::Op(o) if o == "*")
+        && matches!(prev, Tok::Var(_) | Tok::Ident(_))
+        && matches!(next, Some(Tok::Comma) | Some(Tok::RBrack))
+    {
+        return false;
     }
     // Tight after openers and field access.
     match prev {

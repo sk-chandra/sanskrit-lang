@@ -203,7 +203,7 @@ pub fn lex_full(src: &str) -> Result<Vec<Token>, LexError> {
             '=' => Some(Tok::Eq),
             '।' | '॥' | ';' => Some(Tok::Danda),
             '→' => Some(Tok::Arrow),
-            '+' | '-' | '*' | '/' | '%' | '<' | '>' | '!' => Some(Tok::Op(c.to_string())),
+            '+' | '-' | '*' | '/' | '%' | '<' | '>' | '!' | '^' | '$' => Some(Tok::Op(c.to_string())),
             _ => None,
         };
         if let Some(tok) = single {

@@ -93,6 +93,9 @@ impl Parser {
     fn peek2(&self) -> &Tok {
         &self.toks[(self.pos + 1).min(self.toks.len() - 1)].tok
     }
+    fn peek_at(&self, k: usize) -> &Tok {
+        &self.toks[(self.pos + k).min(self.toks.len() - 1)].tok
+    }
     fn line(&self) -> usize {
         self.toks[self.pos].line
     }
@@ -222,11 +225,9 @@ impl Parser {
         while self.peek() != &Tok::RBrace {
             let lhs = self.seq_lhs_elems()?;
             self.expect(&Tok::Arrow, "'->' in क्रम rule")?;
-            let rhs = self.bracket_elems()?;
+            let rhs = self.seq_rhs_elems()?;
             self.expect(&Tok::Danda, "daṇḍa after क्रम rule")?;
-            if lhs.is_empty() {
-                return self.err("a क्रम rule's left side must be non-empty");
-            }
+            self.validate_seq_rule(&lhs)?;
             rules.push(SeqRule { lhs, rhs, order });
             order += 1;
         }
@@ -382,22 +383,59 @@ impl Parser {
         Ok(items)
     }
 
-    /// Like `bracket_elems`, but each element may be a class-constrained
-    /// variable `?v:गण`, encoded as the internal marker `@गण(?v, गण)`.
+    /// Like `bracket_elems`, but each element may be:
+    /// * a class-constrained variable `?v:गण` — marker `@गण(?v, गण)`;
+    /// * a segment variable `?v*` / `?v:गण*` (zero or more elements) —
+    ///   marker `@तारा(?v)` / `@तारा(?v, गण)`;
+    /// * an anchor `^` (sequence start) or `$` (sequence end) —
+    ///   markers `@आदि` / `@अन्त`.
     fn seq_lhs_elems(&mut self) -> PResult<Vec<Term>> {
         self.expect(&Tok::LBrack, "'['")?;
         let mut items = Vec::new();
         if self.peek() != &Tok::RBrack {
             loop {
+                // Anchors.
+                if let Tok::Op(o) = self.peek() {
+                    if o == "^" || o == "$" {
+                        let marker = if o == "^" { "@आदि" } else { "@अन्त" };
+                        self.bump();
+                        items.push(Term::con(marker));
+                        if self.peek() == &Tok::Comma {
+                            self.bump();
+                            continue;
+                        }
+                        break;
+                    }
+                }
+                // Plain segment variable `?v*` — must be disambiguated before
+                // expr() would consume `*` as multiplication.
+                if let Some(var) = self.try_starred_var() {
+                    items.push(Term::app("@तारा", vec![var]));
+                    if self.peek() == &Tok::Comma {
+                        self.bump();
+                        continue;
+                    }
+                    break;
+                }
                 let e = self.expr()?;
-                let e = if matches!(e, Term::Var(_)) && self.peek() == &Tok::Colon {
+                // Optional class constraint on a variable.
+                let (var, class) = if matches!(e, Term::Var(_)) && self.peek() == &Tok::Colon {
                     self.bump(); // ':'
-                    let class = self.ident_name()?;
-                    Term::app("@गण", vec![e, Term::con(&class)])
+                    (e, Some(self.ident_name()?))
                 } else {
-                    e
+                    (e, None)
                 };
-                items.push(e);
+                // Optional star after a class constraint: `?v:गण*`.
+                let starred = class.is_some() && self.peek() == &Tok::Op("*".into());
+                if starred {
+                    self.bump();
+                }
+                let elem = match (starred, class) {
+                    (true, Some(c)) => Term::app("@तारा", vec![var, Term::con(&c)]),
+                    (false, Some(c)) => Term::app("@गण", vec![var, Term::con(&c)]),
+                    (_, None) => var,
+                };
+                items.push(elem);
                 if self.peek() == &Tok::Comma {
                     self.bump();
                 } else {
@@ -407,6 +445,79 @@ impl Parser {
         }
         self.expect(&Tok::RBrack, "']'")?;
         Ok(items)
+    }
+
+    /// The right side of a क्रम rule: ordinary elements, plus `?v*` to splice
+    /// a captured segment back in. Anchors are not allowed here.
+    fn seq_rhs_elems(&mut self) -> PResult<Vec<Term>> {
+        self.expect(&Tok::LBrack, "'['")?;
+        let mut items = Vec::new();
+        if self.peek() != &Tok::RBrack {
+            loop {
+                if let Some(var) = self.try_starred_var() {
+                    items.push(Term::app("@तारा", vec![var]));
+                } else {
+                    items.push(self.expr()?);
+                }
+                if self.peek() == &Tok::Comma {
+                    self.bump();
+                } else {
+                    break;
+                }
+            }
+        }
+        self.expect(&Tok::RBrack, "']'")?;
+        Ok(items)
+    }
+
+    /// If the upcoming tokens are exactly `?v *` followed by `,` or `]`, this
+    /// is a segment variable — consume them and return the variable. (With
+    /// anything else after the `*`, it is ordinary multiplication and is left
+    /// for expr().)
+    fn try_starred_var(&mut self) -> Option<Term> {
+        if let Tok::Var(v) = self.peek() {
+            if self.peek2() == &Tok::Op("*".into())
+                && matches!(self.peek_at(2), Tok::Comma | Tok::RBrack)
+            {
+                let var = Term::Var(v.clone());
+                self.bump(); // ?v
+                self.bump(); // *
+                return Some(var);
+            }
+        }
+        None
+    }
+
+    /// A क्रम left side must anchor sensibly and consume something definite:
+    /// `^` only first, `$` only last, and at least one non-anchor, non-star
+    /// element (otherwise a zero-width match could rewrite forever).
+    fn validate_seq_rule(&self, lhs: &[Term]) -> PResult<()> {
+        if lhs.is_empty() {
+            return self.err("a क्रम rule's left side must be non-empty");
+        }
+        let mut definite = 0;
+        for (i, e) in lhs.iter().enumerate() {
+            match e {
+                Term::Sym(n, _) if n == "@आदि" => {
+                    if i != 0 {
+                        return self.err("'^' may only appear first in a क्रम pattern");
+                    }
+                }
+                Term::Sym(n, _) if n == "@अन्त" => {
+                    if i != lhs.len() - 1 {
+                        return self.err("'$' may only appear last in a क्रम pattern");
+                    }
+                }
+                Term::Sym(n, _) if n == "@तारा" => {}
+                _ => definite += 1,
+            }
+        }
+        if definite == 0 {
+            return self.err(
+                "a क्रम pattern needs at least one concrete element (anchors and ?v* alone could match nothing and rewrite forever)",
+            );
+        }
+        Ok(())
     }
 
     fn list_literal(&mut self) -> PResult<Term> {

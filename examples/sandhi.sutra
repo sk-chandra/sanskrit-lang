@@ -17,3 +17,20 @@
 प्रयोग संधि([क, आ, इ, त])।  # ⇒ [क, ए, त]        (ā + i → e, mid-word)
 प्रयोग संधि([र, आ, म, अ, उ, त])।  # ⇒ [र, आ, म, ओ, त]
 प्रयोग संधि([अ, अ, इ])।  # ⇒ [ए]              (cascades: a+a→ā, ā+i→e)
+
+# Anchors: ^ matches the word's beginning (ādi), $ its end (anta) — so rules
+# can be position-sensitive, like visarga sandhi on a FINAL स only.
+क्रम विसर्ग {
+  [स, $] -> [ः]।
+}
+
+प्रयोग विसर्ग([र, आ, म, स])।  # ⇒ [र, आ, म, ः]   (final स → ḥ)
+प्रयोग विसर्ग([स, थ])।  # ⇒ [स, थ]        (non-final स untouched)
+
+# Segment variables: ?v* captures a run of elements (greedy); with a class,
+# only members. Here: delete every initial vowel cluster.
+क्रम अग्रलोप {
+  [^, ?व:अवर्ण*, ?श] -> [?श]।
+}
+
+प्रयोग अग्रलोप([अ, आ, क, अ])।  # ⇒ [क, अ]   (only the initial run)

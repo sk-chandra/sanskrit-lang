@@ -277,6 +277,30 @@ fn element_classes() {
 }
 
 #[test]
+fn seq_anchors_and_segments() {
+    let src = "गण स्वर := [अ, आ, इ]।\n\
+               क्रम आदि { [^, अ] -> [आ]। }\n\
+               क्रम विसर्ग { [स, $] -> [ः]। }\n\
+               क्रम विभाग { [?a*, मध्य, ?b*] -> [रचना(?a, ?b)]। }\n\
+               क्रम अग्रलोप { [^, ?v:स्वर*, ?c] -> [?c]। }\n\
+               क्रम युगल { [^, ?x*, सम, ?x*, $] -> [?x*]। }";
+    let mut prog = load_prelude().unwrap();
+    prog.extend(parser::parse_program(src).unwrap());
+    // ^ fires only at the start.
+    assert_eq!(eval_in(&prog, "आदि([अ, क, अ])"), "[आ, क, अ]");
+    // $ fires only at the end.
+    assert_eq!(eval_in(&prog, "विसर्ग([र, म, स])"), "[र, म, ः]");
+    assert_eq!(eval_in(&prog, "विसर्ग([स, थ])"), "[स, थ]");
+    // ?v* captures segments (greedy); plain ?v in the RHS gets the list value.
+    assert_eq!(eval_in(&prog, "विभाग([1, 2, मध्य, 3])"), "[([1, 2], [3])]");
+    // Class-constrained segment: a run of vowels.
+    assert_eq!(eval_in(&prog, "अग्रलोप([अ, इ, आ, क])"), "[क]");
+    // Non-linear segments with anchors: the WHOLE word must be x-सम-x.
+    assert_eq!(eval_in(&prog, "युगल([प, द, सम, प, द])"), "[प, द]");
+    assert_eq!(eval_in(&prog, "युगल([प, सम, द])"), "[प, सम, द]");
+}
+
+#[test]
 fn static_checker() {
     let src = "संज्ञा रंग := लाल | हरित | नील।\n\
                सूत्र दुगुना(?x) -> ?x + ?y।\n\

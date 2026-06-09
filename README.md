@@ -75,9 +75,10 @@ What makes Sūtra Sūtra (all detailed in [DESIGN.md](DESIGN.md)):
   sugar, not built-in control flow. Reduction is outermost, so `यदि` is lazy.
 * **Sequence rewriting (क्रम) with element classes (गण).** Pāṇini also rewrote
   *sequences* with context and named classes of sounds; a `क्रम` system rewrites
-  subsequences of a list (leftmost-first, paratva, variables, cascading) and a
-  `गण` lets one rule range over a whole class — so real sandhi expresses
-  directly, not as recursion.
+  subsequences of a list (leftmost-first, paratva, variables, cascading), a
+  `गण` lets one rule range over a whole class, anchors `^`/`$` give
+  word-initial/final context, and `?v*` captures whole segments — so real
+  sandhi (गुण, विसर्ग, …) expresses directly, not as recursion.
 * **Paratva conflict resolution.** When two rules match, the later one wins — a
   specific rule after a general one is an exception (apavāda).
 * **Pattern guards.** `सूत्र f(?n) | ?n < 2 -> ?n।` — a rule fires only when its
@@ -128,9 +129,10 @@ v0.4 (Phase 3 in progress) — a general-purpose practice language. Native data
 functions, **call-by-need sharing**, ergonomic sugar (`do`-notation,
 **pattern guards**), pure effect-as-data I/O (console, files, args, env, time,
 randomness), modules, bilingual syntax, **`क्रम` sequence rewriting with `गण`
-element classes** (the Pāṇinian frontier), a **static checker** (`sutra
-check`), and a **formatter** (`sutra fmt`). Next (see [ROADMAP.md](ROADMAP.md)):
-module namespacing, regex-style क्रम environments, and a language server.
+element classes, anchors, and segment captures** (the Pāṇinian frontier), a
+**static checker** (`sutra check`), and a **formatter** (`sutra fmt`). Next
+(see [ROADMAP.md](ROADMAP.md)): module namespacing, a śivasūtra pratyāhāra
+encoding, and a language server.
 
 ## License
 
