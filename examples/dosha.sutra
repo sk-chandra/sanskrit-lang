@@ -1,0 +1,8 @@
+# दोष and stuck terms — the two faces of failure. No exceptions: a failure is
+# either an error *value* you can inspect, or a term that simply stops reducing.
+# Run: sutra run examples/dosha.sutra
+
+प्रयोग शीर्ष([])।  # head of empty list ⇒ दोष("रिक्ता सूची")
+प्रयोग शीर्ष([9, 8])।  # ⇒ 9
+प्रयोग 5 / 0।  # ⇒ दोष("शून्येन भागः …")  (errors are data)
+प्रयोग शीर्ष(5)।  # no rule applies ⇒ the term stays stuck: शीर्ष(5)

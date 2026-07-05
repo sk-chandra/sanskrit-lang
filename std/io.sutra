@@ -1,0 +1,8 @@
+# निवेश-निर्गम — I/O helpers. Effects are pure data: मुद्रण (print), पठन (read),
+# शुद्ध (pure), and बन्ध (bind) are constructors the runtime interprets. The only
+# thing to define here is sequencing.
+
+अधिकार निवेश।
+
+# अनुक्रम — run ?अ, ignore its result, then run ?ब. (The `>>` operator.)
+सूत्र अनुक्रम(?अ, ?ब) -> बन्ध(?अ, (?अव) => ?ब)।

@@ -1,0 +1,17 @@
+[package]
+name = "sutra"
+version = "0.1.0"
+edition = "2021"
+description = "Sūtra (सूत्र) — a pure term-rewriting programming language in the spirit of Pāṇini's grammar"
+license = "MIT"
+
+[[bin]]
+name = "sutra"
+path = "src/main.rs"
+
+[lib]
+name = "sutra"
+path = "src/lib.rs"
+
+[profile.release]
+opt-level = 3

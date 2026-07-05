@@ -1,0 +1,9 @@
+# An interactive program: pure effect-as-data I/O.
+# Run: sutra run examples/hello.sutra   (then type your name)
+
+सूत्र अभिवादन(?नाम) -> "नमस्ते, " ++ ?नाम ++ "!"।
+
+सूत्र मुख्य ->
+  मुद्रण("तव नाम किम्? (What is your name?)") >>
+  बन्ध(पठन, (?नाम) =>
+    मुद्रण(अभिवादन(?नाम)))।

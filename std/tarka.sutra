@@ -1,0 +1,20 @@
+# तर्क — logic. Booleans are the constants सत्य / असत्य; every control form is
+# an ordinary rewrite rule. (&&, ||, ! and `if` are sugar for these.)
+
+अधिकार तर्क।
+
+सूत्र न(सत्य) -> असत्य।
+सूत्र न(असत्य) -> सत्य।
+
+सूत्र च(सत्य, ?ख) -> ?ख।
+सूत्र च(असत्य, ?ख) -> असत्य।
+
+सूत्र वा(सत्य, ?ख) -> सत्य।
+सूत्र वा(असत्य, ?ख) -> ?ख।
+
+# यदि — the conditional. Lazy because reduction is outermost.
+सूत्र यदि(सत्य, ?तदा, ?अन्यथा) -> ?तदा।
+सूत्र यदि(असत्य, ?तदा, ?अन्यथा) -> ?अन्यथा।
+
+# यमल — non-linear matching demo: equal arguments rewrite to समान.
+सूत्र यमल(?क, ?क) -> समान।

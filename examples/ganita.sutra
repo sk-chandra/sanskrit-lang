@@ -1,0 +1,8 @@
+# गणित — arithmetic with native numbers. Run: sutra run examples/ganita.sutra
+
+प्रयोग 2 + 3 * 4।  # operator precedence ⇒ 14
+प्रयोग क्रमगुणित(20)।  # native ints are fast & exact
+प्रयोग (10 - 3) % 4।
+प्रयोग महत्तम(17, 42)।
+प्रयोग समष्टि(श्रेणी(1, 101))।  # 1 + 2 + … + 100 ⇒ 5050
+प्रयोग प्रति(वर्ग, श्रेणी(1, 11))।  # squares of 1..10

@@ -1,0 +1,98 @@
+# सूत्र — Roadmap toward a general-purpose language
+
+Sūtra began as a pure, first-order term-rewriting core (v0.1). The goal now is a
+**general-purpose practice language** that keeps the Pāṇinian rewriting soul but
+is practical to write real programs in. This file tracks the phased plan; see
+[DESIGN.md](DESIGN.md) for the current specification.
+
+Locked-in design decisions:
+
+* **I/O = pure effect-as-data.** Programs stay pure: `मुख्य` (main) evaluates to
+  an *action* built from `शुद्ध`/`बन्ध`/`मुद्रण`/`पठन`; the runtime executes it.
+* **Ergonomic sugar.** Infix operators, `let`, lambdas, list literals, `if` — all
+  desugar to the rewriting core.
+* **Bilingual, Sanskrit-first.** Devanagari names are canonical; every keyword,
+  operator-word, builtin and stdlib function has a Latin/ASCII alias.
+
+---
+
+## Phase 0 — pure rewriting core *(done, v0.1)*
+
+Lexer/parser, leftmost-outermost reduction, paratva conflict resolution,
+non-linear matching, optional structural saṃjñā types, stuck-term + doṣa failure
+model, Peano numerals, basic stdlib (ganita/tarka/suchi/sandhi).
+
+## Phase 1 — the practical foundation *(this pass, v0.2)*
+
+* **Native data types:** `Int`, `Float`, `String`, `Bool` (सत्य/असत्य), `Unit`
+  (एकक), and cons `List`. Numerals are now native integers, not Peano.
+* **Builtins:** arithmetic (`+ - * / %`), comparison (`== != < <= > >=`),
+  string/list `++`, plus conversions — primitive reductions over native values.
+* **Higher-order functions:** lambdas `(x) => e`, closures by substitution,
+  first-class function references, and application/β-reduction (`?f(?x)`).
+* **Ergonomic surface syntax:** infix operators with precedence, prefix `-`/`!`,
+  list literals `[a, b, c]`, `let x = e in b`, lambdas, `if/then/else`, and the
+  pipe `|>` — all desugaring to core terms.
+* **Pure effect-as-data I/O:** `शुद्ध` (pure), `बन्ध` (bind), `मुद्रण` (print),
+  `पठन` (read), with `>>=`/`>>` operators and a runtime driver that executes the
+  action returned by `मुख्य` (main).
+* **Modules:** `उपयोग "file"` (import) to compose programs across files.
+* **Bilingual aliases:** Devanagari canonical + Latin spellings everywhere.
+* **Refreshed stdlib:** native `ganita`, `tarka`, `suchi` with `map`/`fold`/
+  `filter`, `sutra` (string ops), `io` (action helpers).
+* Updated examples, tests, DESIGN and README.
+
+## Phase 2 — performance & richer data *(in progress, v0.3)*
+
+* ✅ **Call-by-need sharing.** A variable used more than once is bound to a
+  shared thunk (`Share`), so it is reduced at most once. `मन्द(n,1) = 2ⁿ` runs
+  in O(n) steps instead of O(2ⁿ).
+* ✅ **Native maps & records.** `Term::Map` with literal/record syntax
+  `{k: v}`, dot access `r.field`, and `समावेश`/`प्राप्ति`/`अस्ति`/`निष्कास`/
+  `कुञ्जिकाः`/`मूल्यानि` (insert/get/has/remove/keys/values). Records are maps
+  with field-name keys. Recognised as the `कोश` saṃjñā.
+* ✅ **Arbitrary-precision integers.** Hand-rolled `BigInt`; the `i64` fast path
+  promotes on overflow and demotes results that fit. `क्रमगुणित(100)` is exact.
+* ✅ **More effects.** File read/write (`सञ्चिकापाठ`/`सञ्चिकालेख`), program
+  arguments (`प्राचलाः`), environment (`पर्यावरण`), time (`काल`), and randomness
+  (`यादृच्छिक`) — all as effect-as-data the runtime performs.
+* ✅ **Tuples.** `(a, b, c)` builds a `रचना` constructor that pattern-matches
+  like any other; `प्रथम`/`द्वितीय` for pairs (the `युग्मक` saṃjñā).
+* ✅ **`do`-notation** (`क्रिया { ?x <- m; … }`) desugaring over `बन्ध`/`अनुक्रम`.
+
+## Phase 3 — scale & tooling *(in progress, v0.4)*
+
+* ✅ **Pattern guards.** `सूत्र lhs | cond -> rhs।` — fires only when `cond` is
+  सत्य, falling through otherwise. Makes numeric base cases clean.
+* ✅ **Static checker** (`sutra check`). Unbound variables (error), constructor
+  arity (warning), and non-exhaustive single-argument matches (warning).
+* ✅ **Module namespacing for `अधिकार`.** Qualification narrows, unqualified
+  stays global: `f(x)` sees all rules (paratva, unchanged); `म.f(x)` dispatches
+  only into module म. Reuses dot syntax — resolved at reduction time, so record
+  access is untouched. `sutra check` warns on dangling `म.f`.
+* ⬜ Optional static *type* checking over saṃjñā (beyond the current linter).
+* ✅ **Formatter** (`sutra fmt [--write]`). Whitespace/indentation-only: keeps
+  the author's line breaks, comments, and spelling (`fn` vs `सूत्र`, `;` vs `।`);
+  verifies the output lexes to the identical token stream before writing.
+* ✅ **Interactive REPL.** Define rules / गण / क्रम / अधिकार on the fly (sections
+  persist across inputs), multi-line input with a blank-line escape, plus
+  `:load`, `:check`, `:reset`, `:type`, `:rules`, `:classes`, `:history`.
+* ⬜ Tooling: a language server; line editing / completion (needs raw-terminal
+  handling, deferred under the no-external-deps constraint).
+* ✅ **The Pāṇinian frontier (first cut).** `क्रम` sequence-rewriting systems:
+  named blocks of subsequence rules over lists, applied leftmost-first with
+  paratva, with variables, non-linear matching, context-by-neighbours, and
+  cascading. Real vowel sandhi now expresses directly.
+* ✅ **Element classes (गण).** Pratyāhāra-style named sets of atoms; a क्रम
+  pattern element may be a bare class (matches any member) or `?v:गण` (matches
+  and binds). One rule covers a whole class — close to Pāṇini's own method.
+* ✅ **Regex-style क्रम environments.** Anchors `^`/`$` (word-initial *ādi* /
+  word-final *anta* context, e.g. visarga on a final स only) and greedy segment
+  variables `?v*` / `?v:गण*` with backtracking, non-linear consistency, and
+  RHS splicing (or capture-as-list via plain `?v`).
+* ✅ **Śivasūtra pratyāhāra encoding.** `शिवसूत्र { [sounds] -> marker। … }`
+  declares an ordered inventory; `गण X := प्रत्याहार(start, marker)।` derives a
+  class as a span, exactly as Pāṇini formed his names. The stdlib ships his
+  actual fourteen śivasūtras (अच्, हल्, इक्, यण्, … available everywhere), and
+  *iko yaṇ aci* (6.1.77) runs as written. Latest inventory shadows (paratva);
+  underivable spans are caught by `sutra check`.

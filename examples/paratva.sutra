@@ -1,0 +1,11 @@
+# परत्व — conflict resolution. When two rules match, the later-declared one wins
+# (vipratiṣedhe paraṃ kāryam), so specific rules after a general one are
+# exceptions (apavāda). Run: sutra run examples/paratva.sutra
+
+सूत्र जाति(?क्ष) -> अन्य।  # general: anything is "other"…
+सूत्र जाति(अ) -> स्वर।  # …but 'अ' is a vowel (declared later → wins)
+सूत्र जाति(क) -> व्यञ्जन।  # …and 'क' is a consonant
+
+प्रयोग जाति(अ)।  # ⇒ स्वर
+प्रयोग जाति(क)।  # ⇒ व्यञ्जन
+प्रयोग जाति(ग)।  # ⇒ अन्य  (only the general rule matches)

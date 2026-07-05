@@ -1,0 +1,15 @@
+# फिज़बज़ — FizzBuzz, the canonical "is this a real language?" test.
+# Run: sutra run examples/fizzbuzz.sutra
+#
+# Note how this stays pure: मुख्य folds the numbers 1..20 into a single chained
+# *action* (using >> to sequence prints); the runtime then performs it.
+
+सूत्र फिज़(?न) ->
+  यदि(?न % 15 == 0, "FizzBuzz",
+    यदि(?न % 3 == 0, "Fizz",
+      यदि(?न % 5 == 0, "Buzz", रूप(?न))))।
+
+सूत्र मुख्य ->
+  संहार((?क्रिया, ?न) => ?क्रिया >> मुद्रण(फिज़(?न)),
+    शुद्ध(एकक),
+    श्रेणी(1, 21))।

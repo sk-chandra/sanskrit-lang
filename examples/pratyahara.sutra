@@ -1,0 +1,27 @@
+# प्रत्याहार — Pāṇini's own naming device. The standard library declares his
+# fourteen śivasūtras, so the classic sound classes अच् (vowels), हल्
+# (consonants), इक्, यण्, एच्, झल्… are available in every program; a गण can
+# also derive its own span with प्रत्याहार(start, marker).
+# Run: sutra run examples/pratyahara.sutra
+
+# His actual rule "इको यणचि" (Aṣṭādhyāyī 6.1.77): an इक् vowel (इ उ ऋ ऌ)
+# becomes its यण् semivowel before a vowel. The sound classes come straight
+# from the śivasūtras; the sthāna correspondence is ordinary term rewriting,
+# and the two kinds of rewriting compose.
+सूत्र यणादेश(इ) -> य।
+सूत्र यणादेश(उ) -> व।
+सूत्र यणादेश(ऋ) -> र।
+सूत्र यणादेश(ऌ) -> ल।
+
+क्रम स्वरसंधि {
+  [?i:इक्, ?a:अच्] -> [यणादेश(?i), ?a]।
+}
+
+प्रयोग स्वरसंधि([द, ध, इ, अ, त, र])।  # dadhi + atra → दध्यत्र (इ → य्)
+प्रयोग स्वरसंधि([म, ध, उ, अ, र, इ])।  # madhu + ari  → मध्वरि  (उ → व्)
+प्रयोग स्वरसंधि([प, इ, त])।  # इ before a consonant: untouched
+
+# A derived class of one's own: अण् spans the first row (अ इ उ).
+गण मम_गण := प्रत्याहार(ऋ, ङ्)।  # ऋ ऌ ए ओ
+क्रम चिह्नक { [?v:मम_गण] -> [लब्ध(?v)]। }
+प्रयोग चिह्नक([ए, क])।  # ⇒ [लब्ध(ए), क]
